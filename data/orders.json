@@ -1,0 +1,62 @@
+[
+  {
+    "order_id": "ORD-20260310-001",
+    "ordered_at": "2026-03-09T22:45:57.138Z",
+    "items": [
+      {
+        "product_id": "prod001",
+        "qty": 1
+      }
+    ],
+    "product_amount_after_discount": 3300,
+    "shipping_fee": 550,
+    "fee_amount": 0,
+    "customer": {
+      "name": "�e�X�g"
+    },
+    "delivery": {
+      "date": "2026-03-15",
+      "time_slot": "14-16"
+    },
+    "payment_method": "bank",
+    "partner_id": null,
+    "partner_tracked_at": null,
+    "achievement_status": "pending",
+    "tracking_number": null,
+    "shipped_at": null
+  },
+  {
+    "order_id": "ORD-20260310-002",
+    "ordered_at": "2026-03-09T22:47:50.380Z",
+    "items": [
+      {
+        "product_id": "prod002",
+        "qty": 1
+      }
+    ],
+    "product_amount_after_discount": 5500,
+    "shipping_fee": 550,
+    "fee_amount": 0,
+    "customer": {
+      "name": "てすと",
+      "name_kana": "テスト",
+      "zip": "1040061",
+      "prefecture": "東京都",
+      "city": "中央区",
+      "address1": "銀座1-20-2",
+      "address2": "",
+      "phone": "07055644559",
+      "email": "tokyoflowercoltd@gmail.com"
+    },
+    "delivery": {
+      "date": "2026-03-23",
+      "time_slot": "午前中"
+    },
+    "payment_method": "bank",
+    "partner_id": "ptn0001",
+    "partner_tracked_at": "2026-03-09T15:41:53.395Z",
+    "achievement_status": "pending",
+    "tracking_number": null,
+    "shipped_at": null
+  }
+]

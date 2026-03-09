@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>花のアトリエ - 商品一覧</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; }
+    .img-placeholder {
+      display: flex; align-items: center; justify-content: center;
+      background: #f0fdf4; color: #86efac; font-size: 3rem;
+    }
+  </style>
+</head>
+<body class="bg-white text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-100 sticky top-0 z-30">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="index.html" class="text-lg font-bold text-primary-700 tracking-wide">花のアトリエ</a>
+      <a href="cart.html" class="relative inline-flex items-center text-gray-600 hover:text-primary-600 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121 0 2.09-.773 2.34-1.865l1.846-8.078A.75.75 0 0 0 22.106 3.5H6.372m1.128 10.75L6.106 5.272" />
+        </svg>
+        <span x-data="{ count: 0 }" x-init="
+          count = Cart.getCartCount();
+          window.addEventListener('cart-updated', () => { count = Cart.getCartCount(); });
+        " x-show="count > 0" x-text="count"
+          class="absolute -top-1.5 -right-2.5 bg-primary-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"></span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 max-w-5xl mx-auto w-full px-4 py-6" x-data="productList()" x-init="init()">
+
+    <!-- Category Tabs -->
+    <div class="flex gap-2 mb-6 overflow-x-auto pb-1">
+      <template x-for="cat in categories" :key="cat.value">
+        <button
+          @click="activeCategory = cat.value"
+          :class="activeCategory === cat.value
+            ? 'bg-primary-600 text-white'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+          class="px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition"
+          x-text="cat.label"></button>
+      </template>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="text-center py-20 text-gray-400">読み込み中...</div>
+
+    <!-- Error -->
+    <div x-show="error" class="text-center py-20 text-red-500" x-text="error"></div>
+
+    <!-- Product Grid -->
+    <div x-show="!loading && !error" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <template x-for="p in filteredProducts" :key="p.product_id">
+        <div class="border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition bg-white flex flex-col">
+          <!-- Image -->
+          <div class="aspect-[4/3] relative bg-primary-50 overflow-hidden">
+            <img :src="p.image" :alt="p.name"
+              class="w-full h-full object-cover"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="img-placeholder absolute inset-0" style="display:none;">&#x1F33F;</div>
+            <div x-show="!p.in_stock"
+              class="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <span class="bg-white text-gray-700 font-bold text-sm px-4 py-1.5 rounded">SOLD OUT</span>
+            </div>
+          </div>
+          <!-- Info -->
+          <div class="p-4 flex flex-col flex-1">
+            <h3 class="font-bold text-base mb-1" x-text="p.name"></h3>
+            <p class="text-gray-500 text-sm truncate mb-3" x-text="p.description"></p>
+            <div class="mt-auto flex items-center justify-between">
+              <span class="text-lg font-bold text-primary-700" x-text="'¥' + p.price.toLocaleString()"></span>
+              <button
+                x-show="p.in_stock"
+                @click="addToCart(p.product_id)"
+                class="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition active:scale-95">
+                カートに入れる
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Toast -->
+    <div x-show="toast" x-transition.opacity.duration.300ms
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm z-50"
+      x-text="toastMessage"></div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center text-xs text-gray-400 py-4 border-t border-gray-50">
+    &copy; 2026 花のアトリエ
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/partner.js"></script>
+  <script src="js/cart.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script>
+    function productList() {
+      return {
+        products: [],
+        loading: true,
+        error: null,
+        activeCategory: 'all',
+        toast: false,
+        toastMessage: '',
+        categories: [
+          { value: 'all', label: 'すべて' },
+          { value: 'arrangement', label: 'アレンジメント' },
+          { value: 'bouquet', label: '花束' },
+          { value: 'plant', label: '観葉植物' }
+        ],
+        get filteredProducts() {
+          if (this.activeCategory === 'all') return this.products;
+          return this.products.filter(p => p.category === this.activeCategory);
+        },
+        async init() {
+          Partner.initPartnerTracking();
+          try {
+            this.products = await API.fetchProducts();
+          } catch (e) {
+            this.error = e.message;
+          } finally {
+            this.loading = false;
+          }
+        },
+        addToCart(productId) {
+          Cart.addToCart(productId, 1);
+          window.dispatchEvent(new CustomEvent('cart-updated'));
+          this.showToast('カートに追加しました');
+        },
+        showToast(msg) {
+          this.toastMessage = msg;
+          this.toast = true;
+          setTimeout(() => { this.toast = false; }, 2000);
+        }
+      };
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注文手続き - 花のアトリエ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; }
+  </style>
+</head>
+<body class="bg-white text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-100 sticky top-0 z-30">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="index.html" class="text-lg font-bold text-primary-700 tracking-wide">花のアトリエ</a>
+      <a href="cart.html" class="relative inline-flex items-center text-gray-600 hover:text-primary-600 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121 0 2.09-.773 2.34-1.865l1.846-8.078A.75.75 0 0 0 22.106 3.5H6.372m1.128 10.75L6.106 5.272" />
+        </svg>
+        <span x-data="{ count: 0 }" x-init="count = Cart.getCartCount();" x-show="count > 0" x-text="count"
+          class="absolute -top-1.5 -right-2.5 bg-primary-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"></span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 max-w-3xl mx-auto w-full px-4 py-6" x-data="orderPage()" x-init="init()">
+
+    <h1 class="text-xl font-bold mb-6">注文手続き</h1>
+
+    <!-- Empty cart redirect -->
+    <div x-show="!loading && totals.items.length === 0" class="text-center py-20">
+      <p class="text-gray-400 mb-4">カートに商品がありません</p>
+      <a href="index.html" class="inline-block bg-primary-600 hover:bg-primary-700 text-white font-medium px-6 py-2.5 rounded-lg transition">商品一覧へ</a>
+    </div>
+
+    <div x-show="!loading && totals.items.length > 0">
+
+      <!-- Order Summary (read-only) -->
+      <section class="mb-8">
+        <h2 class="text-base font-bold mb-3 text-gray-700">注文内容</h2>
+        <div class="border border-gray-100 rounded-xl p-4 space-y-2 bg-gray-50 text-sm">
+          <template x-for="item in totals.items" :key="item.product_id">
+            <div class="flex justify-between">
+              <span><span x-text="item.name"></span> <span class="text-gray-400">x<span x-text="item.qty"></span></span></span>
+              <span x-text="'¥' + item.lineTotal.toLocaleString()"></span>
+            </div>
+          </template>
+          <div class="border-t border-gray-200 pt-2 flex justify-between">
+            <span class="text-gray-500">小計</span>
+            <span x-text="'¥' + totals.subtotal.toLocaleString()"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">送料</span>
+            <span x-text="totals.shippingFee === 0 ? '無料' : '¥' + totals.shippingFee.toLocaleString()"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">手数料</span>
+            <span x-text="feeAmount > 0 ? '¥' + feeAmount.toLocaleString() : '¥0'"></span>
+          </div>
+          <div class="border-t border-gray-200 pt-2 flex justify-between font-bold text-base">
+            <span>合計</span>
+            <span class="text-primary-700" x-text="'¥' + grandTotal.toLocaleString()"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Customer Form -->
+      <section class="mb-8">
+        <h2 class="text-base font-bold mb-3 text-gray-700">お届け先</h2>
+        <div class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">お名前 <span class="text-red-400">*</span></label>
+              <input type="text" x-model="customer.name" placeholder="山田 太郎" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">フリガナ <span class="text-red-400">*</span></label>
+              <input type="text" x-model="customer.name_kana" placeholder="ヤマダ タロウ" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">郵便番号 <span class="text-red-400">*</span></label>
+              <input type="text" x-model="customer.zip" placeholder="150-0001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">都道府県 <span class="text-red-400">*</span></label>
+              <select x-model="customer.prefecture" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
+                <option value="">選択してください</option>
+                <template x-for="pref in prefectures" :key="pref">
+                  <option :value="pref" x-text="pref"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">市区町村 <span class="text-red-400">*</span></label>
+            <input type="text" x-model="customer.city" placeholder="渋谷区" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">番地 <span class="text-red-400">*</span></label>
+            <input type="text" x-model="customer.address1" placeholder="神宮前1-2-3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">建物名</label>
+            <input type="text" x-model="customer.address2" placeholder="ABCビル 301" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">電話番号 <span class="text-red-400">*</span></label>
+              <input type="tel" x-model="customer.phone" placeholder="090-1234-5678" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">メールアドレス <span class="text-red-400">*</span></label>
+              <input type="email" x-model="customer.email" placeholder="yamada@example.com" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Delivery -->
+      <section class="mb-8">
+        <h2 class="text-base font-bold mb-3 text-gray-700">お届け希望</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">お届け日 <span class="text-red-400">*</span></label>
+            <select x-model="delivery.date" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
+              <option value="">選択してください</option>
+              <template x-for="d in deliveryDates" :key="d.value">
+                <option :value="d.value" x-text="d.label"></option>
+              </template>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">時間帯</label>
+            <select x-model="delivery.time_slot" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
+              <option value="">指定なし</option>
+              <option value="午前中">午前中</option>
+              <option value="12-14">12:00 - 14:00</option>
+              <option value="14-16">14:00 - 16:00</option>
+              <option value="16-18">16:00 - 18:00</option>
+              <option value="18-20">18:00 - 20:00</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Payment -->
+      <section class="mb-8">
+        <h2 class="text-base font-bold mb-3 text-gray-700">お支払い方法</h2>
+        <div class="space-y-2">
+          <label class="flex items-center gap-3 border border-gray-200 rounded-lg px-4 py-3 cursor-pointer hover:bg-gray-50 transition" :class="paymentMethod === 'cod' && 'border-primary-400 bg-primary-50'">
+            <input type="radio" name="payment" value="cod" x-model="paymentMethod" class="accent-primary-600">
+            <div>
+              <span class="text-sm font-medium">代金引換</span>
+              <span class="text-xs text-gray-400 ml-2">手数料 ¥330</span>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 border border-gray-200 rounded-lg px-4 py-3 cursor-pointer hover:bg-gray-50 transition" :class="paymentMethod === 'bank' && 'border-primary-400 bg-primary-50'">
+            <input type="radio" name="payment" value="bank" x-model="paymentMethod" class="accent-primary-600">
+            <div>
+              <span class="text-sm font-medium">銀行振込（前払い）</span>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Errors -->
+      <div x-show="errors.length > 0" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+        <template x-for="err in errors" :key="err">
+          <p class="text-red-600 text-sm" x-text="err"></p>
+        </template>
+      </div>
+
+      <!-- Server Error -->
+      <div x-show="serverError" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+        <p class="text-red-600 text-sm" x-text="serverError"></p>
+      </div>
+
+      <!-- Submit -->
+      <button @click="submit()"
+        :disabled="submitting"
+        :class="submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700 active:scale-[0.98]'"
+        class="w-full text-white font-bold py-3.5 rounded-lg transition text-base">
+        <span x-show="!submitting">注文を確定する</span>
+        <span x-show="submitting" class="inline-flex items-center gap-2">
+          <svg class="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+          送信中...
+        </span>
+      </button>
+
+      <a href="cart.html" class="block text-center text-sm text-gray-400 hover:text-gray-600 mt-4 transition">カートに戻る</a>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center text-xs text-gray-400 py-4 border-t border-gray-50">
+    &copy; 2026 花のアトリエ
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/partner.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/validation.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script>
+    function orderPage() {
+      return {
+        products: [],
+        loading: true,
+        totals: { items: [], subtotal: 0, shippingFee: 0, total: 0 },
+        customer: { name: '', name_kana: '', zip: '', prefecture: '', city: '', address1: '', address2: '', phone: '', email: '' },
+        delivery: { date: '', time_slot: '' },
+        paymentMethod: 'cod',
+        errors: [],
+        serverError: '',
+        submitting: false,
+        prefectures: [
+          '北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県',
+          '茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県',
+          '新潟県','富山県','石川県','福井県','山梨県','長野県',
+          '岐阜県','静岡県','愛知県','三重県',
+          '滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県',
+          '鳥取県','島根県','岡山県','広島県','山口県',
+          '徳島県','香川県','愛媛県','高知県',
+          '福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'
+        ],
+        get feeAmount() {
+          return this.paymentMethod === 'cod' ? CONFIG.COD_FEE : 0;
+        },
+        get grandTotal() {
+          return this.totals.subtotal + this.totals.shippingFee + this.feeAmount;
+        },
+        get deliveryDates() {
+          var dates = [];
+          var now = new Date();
+          for (var i = 3; i <= 14; i++) {
+            var d = new Date(now);
+            d.setDate(d.getDate() + i);
+            var y = d.getFullYear();
+            var m = String(d.getMonth() + 1).padStart(2, '0');
+            var day = String(d.getDate()).padStart(2, '0');
+            var weekdays = ['日','月','火','水','木','金','土'];
+            var value = y + '-' + m + '-' + day;
+            var label = m + '/' + day + '(' + weekdays[d.getDay()] + ')';
+            dates.push({ value: value, label: label });
+          }
+          return dates;
+        },
+        async init() {
+          try {
+            this.products = await API.fetchProducts();
+          } catch (e) {
+            this.products = [];
+          } finally {
+            this.loading = false;
+          }
+          this.recalc();
+        },
+        recalc() {
+          this.totals = Cart.calculateTotals(this.products);
+        },
+        async submit() {
+          this.errors = [];
+          this.serverError = '';
+
+          // Validate customer
+          var validationErrors = Validation.validateCustomerForm(this.customer);
+          if (!this.delivery.date) {
+            validationErrors.push('お届け日を選択してください');
+          }
+          if (validationErrors.length > 0) {
+            this.errors = validationErrors;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+          }
+
+          this.submitting = true;
+
+          var partnerInfo = Partner.getPartnerInfo();
+          var cart = Cart.getCart();
+
+          var orderData = {
+            items: cart.items,
+            product_amount_after_discount: this.totals.subtotal,
+            shipping_fee: this.totals.shippingFee,
+            fee_amount: this.feeAmount,
+            payment_method: this.paymentMethod,
+            customer: this.customer,
+            delivery: {
+              date: this.delivery.date,
+              time_slot: this.delivery.time_slot || '指定なし'
+            }
+          };
+
+          if (partnerInfo) {
+            orderData.partner_id = partnerInfo.partner_id;
+            orderData.partner_tracked_at = partnerInfo.tracked_at;
+          }
+
+          try {
+            var result = await API.submitOrder(orderData);
+            // Save order info for complete page
+            sessionStorage.setItem('last_order', JSON.stringify({
+              order_id: result.order_id,
+              total: result.total,
+              items: this.totals.items,
+              subtotal: this.totals.subtotal,
+              shippingFee: this.totals.shippingFee,
+              feeAmount: this.feeAmount,
+              paymentMethod: this.paymentMethod
+            }));
+            Cart.clearCart();
+            window.location.href = 'complete.html';
+          } catch (e) {
+            this.serverError = e.message;
+            this.submitting = false;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }
+      };
+    }
+  </script>
+</body>
+</html>

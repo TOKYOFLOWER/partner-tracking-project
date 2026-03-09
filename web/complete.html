@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注文完了 - 花のアトリエ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; }
+  </style>
+</head>
+<body class="bg-white text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-100 sticky top-0 z-30">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="index.html" class="text-lg font-bold text-primary-700 tracking-wide">花のアトリエ</a>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 max-w-3xl mx-auto w-full px-4 py-10" x-data="completePage()" x-init="init()">
+
+    <!-- No order info -->
+    <div x-show="!order" class="text-center py-20">
+      <p class="text-gray-400 mb-4">注文情報が見つかりません</p>
+      <a href="index.html" class="inline-block bg-primary-600 hover:bg-primary-700 text-white font-medium px-6 py-2.5 rounded-lg transition">トップに戻る</a>
+    </div>
+
+    <!-- Order Complete -->
+    <div x-show="order" class="text-center">
+      <!-- Check icon -->
+      <div class="w-16 h-16 mx-auto mb-5 rounded-full bg-primary-100 flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+
+      <h1 class="text-xl font-bold mb-2">ご注文ありがとうございます</h1>
+      <p class="text-gray-500 text-sm mb-8">ご注文内容の確認メールをお送りいたします。</p>
+
+      <!-- Order ID -->
+      <div class="inline-block bg-gray-50 border border-gray-100 rounded-xl px-6 py-4 mb-8">
+        <p class="text-xs text-gray-400 mb-1">注文番号</p>
+        <p class="text-lg font-bold text-primary-700" x-text="order.order_id"></p>
+      </div>
+
+      <!-- Order Summary -->
+      <div class="text-left border border-gray-100 rounded-xl p-5 mb-8 max-w-md mx-auto">
+        <h2 class="text-sm font-bold text-gray-700 mb-3">注文サマリー</h2>
+        <div class="space-y-2 text-sm">
+          <template x-for="item in order.items" :key="item.product_id">
+            <div class="flex justify-between">
+              <span><span x-text="item.name"></span> <span class="text-gray-400">x<span x-text="item.qty"></span></span></span>
+              <span x-text="'¥' + item.lineTotal.toLocaleString()"></span>
+            </div>
+          </template>
+          <div class="border-t border-gray-100 pt-2 flex justify-between">
+            <span class="text-gray-500">小計</span>
+            <span x-text="'¥' + order.subtotal.toLocaleString()"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">送料</span>
+            <span x-text="order.shippingFee === 0 ? '無料' : '¥' + order.shippingFee.toLocaleString()"></span>
+          </div>
+          <div x-show="order.feeAmount > 0" class="flex justify-between">
+            <span class="text-gray-500">手数料</span>
+            <span x-text="'¥' + order.feeAmount.toLocaleString()"></span>
+          </div>
+          <div class="border-t border-gray-100 pt-2 flex justify-between font-bold">
+            <span>合計</span>
+            <span class="text-primary-700" x-text="'¥' + order.total.toLocaleString()"></span>
+          </div>
+        </div>
+      </div>
+
+      <a href="index.html" class="inline-block bg-primary-600 hover:bg-primary-700 text-white font-medium px-8 py-3 rounded-lg transition">トップに戻る</a>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center text-xs text-gray-400 py-4 border-t border-gray-50">
+    &copy; 2026 花のアトリエ
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/partner.js"></script>
+  <script src="js/cart.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script>
+    function completePage() {
+      return {
+        order: null,
+        init() {
+          // Ensure cart is cleared
+          Cart.clearCart();
+
+          var raw = sessionStorage.getItem('last_order');
+          if (raw) {
+            try {
+              this.order = JSON.parse(raw);
+            } catch (e) {
+              this.order = null;
+            }
+            sessionStorage.removeItem('last_order');
+          }
+        }
+      };
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>カート - 花のアトリエ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; }
+    .img-placeholder-sm {
+      display: flex; align-items: center; justify-content: center;
+      background: #f0fdf4; color: #86efac; font-size: 1.5rem;
+    }
+  </style>
+</head>
+<body class="bg-white text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-100 sticky top-0 z-30">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="index.html" class="text-lg font-bold text-primary-700 tracking-wide">花のアトリエ</a>
+      <a href="cart.html" class="relative inline-flex items-center text-gray-600 hover:text-primary-600 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121 0 2.09-.773 2.34-1.865l1.846-8.078A.75.75 0 0 0 22.106 3.5H6.372m1.128 10.75L6.106 5.272" />
+        </svg>
+        <span x-data="{ count: 0 }" x-init="
+          count = Cart.getCartCount();
+          window.addEventListener('cart-updated', () => { count = Cart.getCartCount(); });
+        " x-show="count > 0" x-text="count"
+          class="absolute -top-1.5 -right-2.5 bg-primary-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"></span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 max-w-3xl mx-auto w-full px-4 py-6" x-data="cartPage()" x-init="init()">
+
+    <h1 class="text-xl font-bold mb-6">ショッピングカート</h1>
+
+    <!-- Loading -->
+    <div x-show="loading" class="text-center py-20 text-gray-400">読み込み中...</div>
+
+    <!-- Empty Cart -->
+    <div x-show="!loading && totals.items.length === 0" class="text-center py-20">
+      <p class="text-gray-400 mb-4">カートは空です</p>
+      <a href="index.html" class="inline-block bg-primary-600 hover:bg-primary-700 text-white font-medium px-6 py-2.5 rounded-lg transition">商品一覧へ</a>
+    </div>
+
+    <!-- Cart Items -->
+    <div x-show="!loading && totals.items.length > 0">
+      <div class="space-y-4 mb-8">
+        <template x-for="item in totals.items" :key="item.product_id">
+          <div class="flex gap-4 border border-gray-100 rounded-xl p-3 sm:p-4 items-center">
+            <!-- Thumbnail -->
+            <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-primary-50">
+              <img :src="item.image" :alt="item.name"
+                class="w-full h-full object-cover"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+              <div class="img-placeholder-sm w-full h-full" style="display:none;">&#x1F33F;</div>
+            </div>
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+              <h3 class="font-bold text-sm sm:text-base truncate" x-text="item.name"></h3>
+              <p class="text-gray-500 text-sm" x-text="'¥' + item.price.toLocaleString()"></p>
+            </div>
+            <!-- Qty Controls -->
+            <div class="flex items-center gap-1.5">
+              <button @click="changeQty(item.product_id, item.qty - 1)"
+                class="w-8 h-8 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center transition text-lg leading-none">&minus;</button>
+              <span class="w-8 text-center font-medium text-sm" x-text="item.qty"></span>
+              <button @click="changeQty(item.product_id, item.qty + 1)"
+                class="w-8 h-8 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center transition text-lg leading-none">&plus;</button>
+            </div>
+            <!-- Line Total -->
+            <div class="text-right w-20 sm:w-24 flex-shrink-0">
+              <p class="font-bold text-sm sm:text-base" x-text="'¥' + item.lineTotal.toLocaleString()"></p>
+            </div>
+            <!-- Delete -->
+            <button @click="remove(item.product_id)"
+              class="text-gray-300 hover:text-red-500 transition flex-shrink-0" title="削除">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </template>
+      </div>
+
+      <!-- Summary -->
+      <div class="border-t border-gray-200 pt-5 space-y-2 text-sm">
+        <div class="flex justify-between">
+          <span class="text-gray-500">小計</span>
+          <span x-text="'¥' + totals.subtotal.toLocaleString()"></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-500">送料</span>
+          <span x-text="totals.shippingFee === 0 ? '無料' : '¥' + totals.shippingFee.toLocaleString()"></span>
+        </div>
+        <div x-show="totals.subtotal < CONFIG.FREE_SHIPPING_THRESHOLD && totals.subtotal > 0" class="text-xs text-primary-600">
+          あと<span x-text="'¥' + (CONFIG.FREE_SHIPPING_THRESHOLD - totals.subtotal).toLocaleString()"></span>で送料無料
+        </div>
+        <div class="flex justify-between text-base font-bold pt-3 border-t border-gray-100">
+          <span>合計</span>
+          <span class="text-primary-700" x-text="'¥' + totals.total.toLocaleString()"></span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="mt-8 flex flex-col sm:flex-row gap-3">
+        <a href="index.html" class="text-center border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium px-6 py-3 rounded-lg transition sm:flex-1">買い物を続ける</a>
+        <a href="order.html" class="text-center bg-primary-600 hover:bg-primary-700 text-white font-medium px-6 py-3 rounded-lg transition sm:flex-1">注文手続きへ</a>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center text-xs text-gray-400 py-4 border-t border-gray-50">
+    &copy; 2026 花のアトリエ
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/partner.js"></script>
+  <script src="js/cart.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script>
+    function cartPage() {
+      return {
+        products: [],
+        loading: true,
+        totals: { items: [], subtotal: 0, shippingFee: 0, total: 0 },
+        async init() {
+          try {
+            this.products = await API.fetchProducts();
+          } catch (e) {
+            this.products = [];
+          } finally {
+            this.loading = false;
+          }
+          this.recalc();
+        },
+        recalc() {
+          this.totals = Cart.calculateTotals(this.products);
+          window.dispatchEvent(new CustomEvent('cart-updated'));
+        },
+        changeQty(productId, qty) {
+          if (qty <= 0) {
+            Cart.removeFromCart(productId);
+          } else {
+            Cart.updateQty(productId, qty);
+          }
+          this.recalc();
+        },
+        remove(productId) {
+          Cart.removeFromCart(productId);
+          this.recalc();
+        }
+      };
+    }
+  </script>
+</body>
+</html>
