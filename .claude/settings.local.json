@@ -6,7 +6,9 @@
       "Bash(node:*)",
       "Bash(npm start:*)",
       "Bash(curl:*)",
-      "Bash(npx serve:*)"
+      "Bash(npx serve:*)",
+      "Bash(pkill:*)",
+      "Bash(tasklist:*)"
     ]
   }
 }
