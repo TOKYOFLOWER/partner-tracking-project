@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注文管理</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Navigation -->
+  <header class="bg-indigo-700 text-white">
+    <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+      <span class="text-lg font-bold tracking-wide">注文管理</span>
+      <nav class="flex gap-1">
+        <a href="index.html"
+          class="px-4 py-1.5 rounded text-sm font-medium bg-indigo-600 text-white">注文一覧</a>
+        <a href="aggregate.html"
+          class="px-4 py-1.5 rounded text-sm font-medium text-indigo-200 hover:bg-indigo-600 hover:text-white transition">集計</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 max-w-6xl mx-auto w-full px-4 py-6" x-data="orderList()" x-init="init()">
+
+    <!-- Filter Bar -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <!-- Status -->
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">ステータス</label>
+          <select x-model="filters.status" @change="fetchData()"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            <option value="">すべて</option>
+            <option value="pending">pending</option>
+            <option value="confirmed">confirmed</option>
+            <option value="cancelled">cancelled</option>
+          </select>
+        </div>
+        <!-- Partner -->
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">パートナー</label>
+          <select x-model="filters.partner_id" @change="fetchData()"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            <option value="">すべて</option>
+            <template x-for="p in partners" :key="p.partner_id">
+              <option :value="p.partner_id" x-text="p.partner_name + ' (' + p.partner_id + ')'"></option>
+            </template>
+          </select>
+        </div>
+        <!-- Month -->
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">月</label>
+          <input type="month" x-model="filters.month" @change="fetchData()"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        </div>
+        <!-- Search -->
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">検索</label>
+          <input type="text" x-model="filters.search" @input.debounce.400ms="fetchData()"
+            placeholder="注文番号 or 顧客名"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Badges -->
+    <div x-show="summary" class="flex flex-wrap gap-3 mb-4">
+      <span class="inline-flex items-center gap-1.5 bg-white border border-gray-200 rounded-full px-4 py-1.5 text-sm shadow-sm">
+        全件 <span class="font-bold" x-text="summary.total"></span>
+      </span>
+      <span class="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-4 py-1.5 text-sm shadow-sm">
+        pending <span class="font-bold" x-text="summary.pending"></span>
+      </span>
+      <span class="inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 rounded-full px-4 py-1.5 text-sm shadow-sm">
+        confirmed <span class="font-bold" x-text="summary.confirmed"></span>
+      </span>
+      <span class="inline-flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-700 rounded-full px-4 py-1.5 text-sm shadow-sm">
+        cancelled <span class="font-bold" x-text="summary.cancelled"></span>
+      </span>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="text-center py-20">
+      <svg class="animate-spin h-8 w-8 text-indigo-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+      </svg>
+      <span class="text-gray-400 text-sm">読み込み中...</span>
+    </div>
+
+    <!-- Error -->
+    <div x-show="error" class="text-center py-20 text-red-500 text-sm" x-text="error"></div>
+
+    <!-- Empty -->
+    <div x-show="!loading && !error && orders.length === 0" class="text-center py-20 text-gray-400">
+      注文がありません
+    </div>
+
+    <!-- Orders Table -->
+    <div x-show="!loading && !error && orders.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="px-4 py-3">注文番号</th>
+            <th class="px-4 py-3">注文日時</th>
+            <th class="px-4 py-3">顧客名</th>
+            <th class="px-4 py-3 text-right">金額(税込)</th>
+            <th class="px-4 py-3">パートナー</th>
+            <th class="px-4 py-3">ステータス</th>
+            <th class="px-4 py-3">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(o, idx) in orders" :key="o.order_id">
+            <tr :class="idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'" class="border-b border-gray-100 hover:bg-indigo-50 transition">
+              <td class="px-4 py-3 font-mono text-xs" x-text="o.order_id"></td>
+              <td class="px-4 py-3 text-gray-600" x-text="formatDate(o.ordered_at)"></td>
+              <td class="px-4 py-3" x-text="o.customer ? o.customer.name : '-'"></td>
+              <td class="px-4 py-3 text-right font-medium" x-text="'¥' + calcTotal(o).toLocaleString()"></td>
+              <td class="px-4 py-3 text-gray-500" x-text="o.partner_id || '-'"></td>
+              <td class="px-4 py-3">
+                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+                  :class="statusClass(o.achievement_status)"
+                  x-text="o.achievement_status"></span>
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex gap-1.5">
+                  <a :href="'detail.html?id=' + encodeURIComponent(o.order_id)"
+                    class="px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-medium hover:bg-indigo-200 transition">詳細</a>
+                  <button x-show="o.achievement_status === 'pending'"
+                    @click="openShipModal(o)"
+                    class="px-2.5 py-1 bg-green-100 text-green-700 rounded text-xs font-medium hover:bg-green-200 transition">出荷</button>
+                  <button x-show="o.achievement_status === 'pending' || o.achievement_status === 'confirmed'"
+                    @click="cancelOrder(o)"
+                    class="px-2.5 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200 transition">取消</button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Ship Modal -->
+    <div x-show="shipModal.open" x-transition.opacity
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      @click.self="shipModal.open = false">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+        <h3 class="text-lg font-bold mb-4">出荷処理</h3>
+        <div class="mb-3 text-sm">
+          <span class="text-gray-500">注文番号:</span>
+          <span class="font-mono font-medium" x-text="shipModal.orderId"></span>
+        </div>
+        <div class="mb-4 text-sm">
+          <span class="text-gray-500">顧客名:</span>
+          <span class="font-medium" x-text="shipModal.customerName"></span>
+        </div>
+        <div class="mb-5">
+          <label class="block text-sm font-medium text-gray-700 mb-1">送状番号 <span class="text-red-500">*</span></label>
+          <input type="text" x-model="shipModal.trackingNumber"
+            placeholder="例: 1234-5678-9012"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+          <p x-show="shipModal.error" class="text-red-500 text-xs mt-1" x-text="shipModal.error"></p>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button @click="shipModal.open = false"
+            class="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition">キャンセル</button>
+          <button @click="submitShip()"
+            :disabled="shipModal.processing"
+            class="px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700 transition disabled:opacity-50">
+            <span x-show="!shipModal.processing">出荷確定</span>
+            <span x-show="shipModal.processing">処理中...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div x-show="toast.show" x-transition.opacity.duration.300ms
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-lg shadow-lg text-sm text-white"
+      :class="toast.type === 'error' ? 'bg-red-600' : 'bg-gray-800'"
+      x-text="toast.message"></div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center text-xs text-gray-400 py-4 border-t border-gray-100">
+    &copy; 2026 注文管理システム
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/admin-config.js"></script>
+  <script src="js/admin-api.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script>
+    function orderList() {
+      return {
+        orders: [],
+        summary: null,
+        partners: [],
+        loading: true,
+        error: null,
+        filters: {
+          status: '',
+          partner_id: '',
+          month: new Date().toISOString().slice(0, 7),
+          search: ''
+        },
+        shipModal: {
+          open: false,
+          orderId: '',
+          customerName: '',
+          trackingNumber: '',
+          processing: false,
+          error: ''
+        },
+        toast: { show: false, message: '', type: 'success' },
+
+        async init() {
+          // パートナー一覧を取得
+          const pRes = await AdminAPI.fetchPartners();
+          if (!pRes.error) {
+            this.partners = pRes;
+          }
+          await this.fetchData();
+        },
+
+        async fetchData() {
+          this.loading = true;
+          this.error = null;
+          const res = await AdminAPI.fetchOrders(this.filters);
+          if (res.error) {
+            this.error = res.error;
+            this.orders = [];
+            this.summary = null;
+          } else {
+            this.orders = res.orders;
+            this.summary = res.summary;
+          }
+          this.loading = false;
+        },
+
+        formatDate(iso) {
+          if (!iso) return '-';
+          const d = new Date(iso);
+          return String(d.getMonth() + 1).padStart(2, '0') + '/' +
+                 String(d.getDate()).padStart(2, '0') + ' ' +
+                 String(d.getHours()).padStart(2, '0') + ':' +
+                 String(d.getMinutes()).padStart(2, '0');
+        },
+
+        calcTotal(o) {
+          return (o.product_amount_after_discount || 0) + (o.shipping_fee || 0) + (o.fee_amount || 0);
+        },
+
+        statusClass(status) {
+          if (status === 'pending') return 'bg-amber-100 text-amber-700';
+          if (status === 'confirmed') return 'bg-green-100 text-green-700';
+          if (status === 'cancelled') return 'bg-red-100 text-red-700';
+          return 'bg-gray-100 text-gray-600';
+        },
+
+        openShipModal(o) {
+          this.shipModal = {
+            open: true,
+            orderId: o.order_id,
+            customerName: o.customer ? o.customer.name : '-',
+            trackingNumber: '',
+            processing: false,
+            error: ''
+          };
+        },
+
+        async submitShip() {
+          if (!this.shipModal.trackingNumber.trim()) {
+            this.shipModal.error = '送状番号を入力してください';
+            return;
+          }
+          this.shipModal.processing = true;
+          this.shipModal.error = '';
+          const res = await AdminAPI.shipOrder(this.shipModal.orderId, this.shipModal.trackingNumber.trim());
+          if (res.error) {
+            this.shipModal.error = res.error;
+            this.shipModal.processing = false;
+          } else {
+            this.shipModal.open = false;
+            this.showToast('出荷処理が完了しました');
+            await this.fetchData();
+          }
+        },
+
+        async cancelOrder(o) {
+          if (!confirm('本当にキャンセルしますか？\n注文番号: ' + o.order_id)) return;
+          const res = await AdminAPI.cancelOrder(o.order_id);
+          if (res.error) {
+            this.showToast(res.error, 'error');
+          } else {
+            this.showToast('キャンセルしました');
+            await this.fetchData();
+          }
+        },
+
+        showToast(msg, type = 'success') {
+          this.toast = { show: true, message: msg, type };
+          setTimeout(() => { this.toast.show = false; }, 2500);
+        }
+      };
+    }
+  </script>
+</body>
+</html>

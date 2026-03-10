@@ -87,11 +87,50 @@ router.post("/", (req, res) => {
   }
 });
 
-// 注文一覧
-// GET /api/order/list
+// 注文一覧（フィルター対応）
+// GET /api/order/list?status=pending&partner_id=ptn0001&month=2026-03&search=山田
 router.get("/list", (req, res) => {
-  const orders = orderPartner.loadAll();
-  res.json(orders);
+  let orders = orderPartner.loadAll();
+  const { status, partner_id, month, search } = req.query;
+
+  // ステータス絞り込み
+  if (status) {
+    orders = orders.filter((o) => o.achievement_status === status);
+  }
+
+  // パートナー絞り込み
+  if (partner_id) {
+    orders = orders.filter((o) => o.partner_id === partner_id);
+  }
+
+  // 月絞り込み（ordered_at で判定）
+  if (month) {
+    const [y, m] = month.split("-").map(Number);
+    orders = orders.filter((o) => {
+      const d = new Date(o.ordered_at);
+      return d.getFullYear() === y && d.getMonth() === m - 1;
+    });
+  }
+
+  // 検索（注文番号 or 顧客名で部分一致）
+  if (search) {
+    const q = search.toLowerCase();
+    orders = orders.filter((o) => {
+      const matchId = o.order_id && o.order_id.toLowerCase().includes(q);
+      const matchName = o.customer && o.customer.name && o.customer.name.toLowerCase().includes(q);
+      return matchId || matchName;
+    });
+  }
+
+  // サマリー（フィルター適用後の全件から集計）
+  const summary = {
+    total: orders.length,
+    pending: orders.filter((o) => o.achievement_status === "pending").length,
+    confirmed: orders.filter((o) => o.achievement_status === "confirmed").length,
+    cancelled: orders.filter((o) => o.achievement_status === "cancelled").length,
+  };
+
+  res.json({ orders, summary });
 });
 
 // 注文詳細

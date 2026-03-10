@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const orderPartner = require("../models/orderPartner");
+const partnerMaster = require("../models/partnerMaster");
 
 // 集計 API
 // GET /api/aggregate?month=2026-03
@@ -13,39 +14,65 @@ router.get("/", (req, res) => {
 
   const orders = orderPartner.loadAll();
 
-  // 対象月のパートナー紐付き注文を抽出
-  const monthlyOrders = orders.filter((o) => {
-    if (!o.partner_id) return false;
+  // 対象月の全注文を抽出
+  const allMonthlyOrders = orders.filter((o) => {
     const d = new Date(o.ordered_at);
     return d.getFullYear() === year && d.getMonth() === month;
   });
 
-  const confirmed = monthlyOrders.filter((o) => o.achievement_status === "confirmed");
-  const pending = monthlyOrders.filter((o) => o.achievement_status === "pending");
-  const cancelled = monthlyOrders.filter((o) => o.achievement_status === "cancelled");
+  // パートナー紐付き注文
+  const partnerOrders = allMonthlyOrders.filter((o) => o.partner_id);
 
-  // 確定売上: confirmed の product_amount_after_discount 合計
-  const confirmedSales = confirmed.reduce((sum, o) => sum + o.product_amount_after_discount, 0);
+  const calcAmount = (o) => o.product_amount_after_discount + (o.shipping_fee || 0) + (o.fee_amount || 0);
 
-  // パートナー別集計
-  const byPartner = {};
-  for (const o of confirmed) {
-    if (!byPartner[o.partner_id]) {
-      byPartner[o.partner_id] = { partner_id: o.partner_id, confirmed_sales: 0, confirmed_count: 0 };
+  const confirmed = allMonthlyOrders.filter((o) => o.achievement_status === "confirmed");
+  const pending = allMonthlyOrders.filter((o) => o.achievement_status === "pending");
+  const cancelled = allMonthlyOrders.filter((o) => o.achievement_status === "cancelled");
+
+  // パートナーマスタからパートナー名取得用マップ
+  const partners = partnerMaster.loadAll();
+  const partnerNameMap = {};
+  for (const p of partners) {
+    partnerNameMap[p.partner_id] = p.partner_name;
+  }
+
+  // パートナー別集計（partner_id=null は「直接注文」）
+  const byPartnerMap = {};
+  for (const o of allMonthlyOrders) {
+    const key = o.partner_id || "__direct__";
+    if (!byPartnerMap[key]) {
+      byPartnerMap[key] = {
+        partner_id: o.partner_id || null,
+        partner_name: o.partner_id ? (partnerNameMap[o.partner_id] || o.partner_id) : "直接注文",
+        total_count: 0,
+        confirmed: { count: 0, amount: 0 },
+        pending: { count: 0, amount: 0 },
+        cancelled: { count: 0, amount: 0 },
+      };
     }
-    byPartner[o.partner_id].confirmed_sales += o.product_amount_after_discount;
-    byPartner[o.partner_id].confirmed_count += 1;
+    const entry = byPartnerMap[key];
+    entry.total_count += 1;
+    const amount = calcAmount(o);
+    if (o.achievement_status === "confirmed") {
+      entry.confirmed.count += 1;
+      entry.confirmed.amount += amount;
+    } else if (o.achievement_status === "pending") {
+      entry.pending.count += 1;
+      entry.pending.amount += amount;
+    } else if (o.achievement_status === "cancelled") {
+      entry.cancelled.count += 1;
+      entry.cancelled.amount += amount;
+    }
   }
 
   res.json({
-    target_month: `${year}-${String(month + 1).padStart(2, "0")}`,
-    summary: {
-      confirmed_sales: confirmedSales,
-      confirmed_count: confirmed.length,
-      pending_count: pending.length,
-      cancelled_count: cancelled.length,
-    },
-    by_partner: Object.values(byPartner),
+    month: `${year}-${String(month + 1).padStart(2, "0")}`,
+    total_orders: allMonthlyOrders.length,
+    partner_orders: partnerOrders.length,
+    confirmed: { count: confirmed.length, amount: confirmed.reduce((s, o) => s + calcAmount(o), 0) },
+    pending: { count: pending.length, amount: pending.reduce((s, o) => s + calcAmount(o), 0) },
+    cancelled: { count: cancelled.length, amount: cancelled.reduce((s, o) => s + calcAmount(o), 0) },
+    by_partner: Object.values(byPartnerMap),
   });
 });
 

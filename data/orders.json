@@ -1,61 +1,113 @@
 [
   {
+    "order_id": "ORD-20260308-001",
+    "ordered_at": "2026-03-08T10:30:00.000Z",
+    "items": [{"product_id": "prod001", "qty": 2}, {"product_id": "prod005", "qty": 1}],
+    "product_amount_after_discount": 8250,
+    "shipping_fee": 550,
+    "fee_amount": 330,
+    "payment_method": "cod",
+    "customer": {"name": "田中 一郎", "name_kana": "タナカ イチロウ", "zip": "160-0022", "prefecture": "東京都", "city": "新宿区", "address1": "新宿3-1-1", "address2": "", "phone": "080-1111-2222", "email": "tanaka@example.com"},
+    "delivery": {"date": "2026-03-12", "time_slot": "午前中"},
+    "partner_id": "ptn0001",
+    "partner_tracked_at": "2026-03-07T09:00:00.000Z",
+    "achievement_status": "confirmed",
+    "tracking_number": "1234-5678-0001",
+    "shipped_at": "2026-03-09T14:00:00.000Z"
+  },
+  {
+    "order_id": "ORD-20260308-002",
+    "ordered_at": "2026-03-08T14:15:00.000Z",
+    "items": [{"product_id": "prod003", "qty": 1}],
+    "product_amount_after_discount": 8800,
+    "shipping_fee": 550,
+    "fee_amount": 0,
+    "payment_method": "bank_transfer",
+    "customer": {"name": "佐藤 美咲", "name_kana": "サトウ ミサキ", "zip": "150-0001", "prefecture": "東京都", "city": "渋谷区", "address1": "神宮前2-5-8", "address2": "メゾン神宮前 402", "phone": "090-3333-4444", "email": "sato@example.com"},
+    "delivery": {"date": "2026-03-13", "time_slot": "14-16"},
+    "partner_id": "ptn0001",
+    "partner_tracked_at": "2026-03-08T12:00:00.000Z",
+    "achievement_status": "pending",
+    "tracking_number": null,
+    "shipped_at": null
+  },
+  {
+    "order_id": "ORD-20260309-001",
+    "ordered_at": "2026-03-09T09:00:00.000Z",
+    "items": [{"product_id": "prod004", "qty": 3}],
+    "product_amount_after_discount": 13200,
+    "shipping_fee": 0,
+    "fee_amount": 330,
+    "payment_method": "cod",
+    "customer": {"name": "鈴木 大輔", "name_kana": "スズキ ダイスケ", "zip": "104-0061", "prefecture": "東京都", "city": "中央区", "address1": "銀座4-2-1", "address2": "", "phone": "070-5555-6666", "email": "suzuki@example.com"},
+    "delivery": {"date": "2026-03-14", "time_slot": "16-18"},
+    "partner_id": "ptn0002",
+    "partner_tracked_at": "2026-03-08T20:00:00.000Z",
+    "achievement_status": "pending",
+    "tracking_number": null,
+    "shipped_at": null
+  },
+  {
+    "order_id": "ORD-20260309-002",
+    "ordered_at": "2026-03-09T11:30:00.000Z",
+    "items": [{"product_id": "prod002", "qty": 1}, {"product_id": "prod005", "qty": 2}],
+    "product_amount_after_discount": 8800,
+    "shipping_fee": 550,
+    "fee_amount": 0,
+    "payment_method": "bank_transfer",
+    "customer": {"name": "高橋 花子", "name_kana": "タカハシ ハナコ", "zip": "530-0001", "prefecture": "大阪府", "city": "大阪市北区", "address1": "梅田1-3-1", "address2": "大阪ビル 10F", "phone": "06-1234-5678", "email": "takahashi@example.com"},
+    "delivery": {"date": null, "time_slot": null},
+    "partner_id": null,
+    "partner_tracked_at": null,
+    "achievement_status": "confirmed",
+    "tracking_number": "9876-5432-1098",
+    "shipped_at": "2026-03-10T10:00:00.000Z"
+  },
+  {
     "order_id": "ORD-20260310-001",
-    "ordered_at": "2026-03-09T22:45:57.138Z",
-    "items": [
-      {
-        "product_id": "prod001",
-        "qty": 1
-      }
-    ],
+    "ordered_at": "2026-03-10T08:45:00.000Z",
+    "items": [{"product_id": "prod001", "qty": 1}],
     "product_amount_after_discount": 3300,
     "shipping_fee": 550,
     "fee_amount": 0,
-    "customer": {
-      "name": "�e�X�g"
-    },
-    "delivery": {
-      "date": "2026-03-15",
-      "time_slot": "14-16"
-    },
-    "payment_method": "bank",
-    "partner_id": null,
-    "partner_tracked_at": null,
+    "payment_method": "bank_transfer",
+    "customer": {"name": "伊藤 健太", "name_kana": "イトウ ケンタ", "zip": "810-0001", "prefecture": "福岡県", "city": "福岡市中央区", "address1": "天神2-1-1", "address2": "", "phone": "092-111-2222", "email": "ito@example.com"},
+    "delivery": {"date": "2026-03-15", "time_slot": "午前中"},
+    "partner_id": "ptn0001",
+    "partner_tracked_at": "2026-03-09T22:00:00.000Z",
     "achievement_status": "pending",
     "tracking_number": null,
     "shipped_at": null
   },
   {
     "order_id": "ORD-20260310-002",
-    "ordered_at": "2026-03-09T22:47:50.380Z",
-    "items": [
-      {
-        "product_id": "prod002",
-        "qty": 1
-      }
-    ],
+    "ordered_at": "2026-03-10T13:20:00.000Z",
+    "items": [{"product_id": "prod002", "qty": 1}],
     "product_amount_after_discount": 5500,
     "shipping_fee": 550,
     "fee_amount": 0,
-    "customer": {
-      "name": "てすと",
-      "name_kana": "テスト",
-      "zip": "1040061",
-      "prefecture": "東京都",
-      "city": "中央区",
-      "address1": "銀座1-20-2",
-      "address2": "",
-      "phone": "07055644559",
-      "email": "tokyoflowercoltd@gmail.com"
-    },
-    "delivery": {
-      "date": "2026-03-23",
-      "time_slot": "午前中"
-    },
-    "payment_method": "bank",
+    "payment_method": "bank_transfer",
+    "customer": {"name": "渡辺 裕子", "name_kana": "ワタナベ ユウコ", "zip": "150-0001", "prefecture": "東京都", "city": "渋谷区", "address1": "銀座1-2-2", "address2": "ABCビル 301", "phone": "070-5564-4559", "email": "watanabe@example.com"},
+    "delivery": {"date": "2026-03-16", "time_slot": "午前中"},
     "partner_id": "ptn0001",
-    "partner_tracked_at": "2026-03-09T15:41:53.395Z",
+    "partner_tracked_at": "2026-03-10T10:00:00.000Z",
     "achievement_status": "pending",
+    "tracking_number": null,
+    "shipped_at": null
+  },
+  {
+    "order_id": "ORD-20260310-003",
+    "ordered_at": "2026-03-10T16:00:00.000Z",
+    "items": [{"product_id": "prod003", "qty": 1}, {"product_id": "prod004", "qty": 1}],
+    "product_amount_after_discount": 13200,
+    "shipping_fee": 0,
+    "fee_amount": 330,
+    "payment_method": "cod",
+    "customer": {"name": "山本 真理", "name_kana": "ヤマモト マリ", "zip": "460-0008", "prefecture": "愛知県", "city": "名古屋市中区", "address1": "栄3-5-1", "address2": "", "phone": "052-333-4444", "email": "yamamoto@example.com"},
+    "delivery": {"date": "2026-03-17", "time_slot": "18-20"},
+    "partner_id": "ptn0002",
+    "partner_tracked_at": "2026-03-10T14:00:00.000Z",
+    "achievement_status": "cancelled",
     "tracking_number": null,
     "shipped_at": null
   }

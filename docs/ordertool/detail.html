@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注文詳細 - 注文管理</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Navigation -->
+  <header class="bg-indigo-700 text-white">
+    <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+      <span class="text-lg font-bold tracking-wide">注文管理</span>
+      <nav class="flex gap-1">
+        <a href="index.html"
+          class="px-4 py-1.5 rounded text-sm font-medium text-indigo-200 hover:bg-indigo-600 hover:text-white transition">注文一覧</a>
+        <a href="aggregate.html"
+          class="px-4 py-1.5 rounded text-sm font-medium text-indigo-200 hover:bg-indigo-600 hover:text-white transition">集計</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 max-w-4xl mx-auto w-full px-4 py-6" x-data="orderDetail()" x-init="init()">
+
+    <!-- Back link -->
+    <a href="index.html" class="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 mb-4 transition">
+      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      一覧に戻る
+    </a>
+
+    <!-- Loading -->
+    <div x-show="loading" class="text-center py-20">
+      <svg class="animate-spin h-8 w-8 text-indigo-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+      </svg>
+      <span class="text-gray-400 text-sm">読み込み中...</span>
+    </div>
+
+    <!-- Error -->
+    <div x-show="error" class="text-center py-20 text-red-500 text-sm" x-text="error"></div>
+
+    <!-- Detail Content -->
+    <div x-show="!loading && !error && order">
+
+      <!-- 1. Header -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 class="text-xl font-bold font-mono" x-text="order.order_id"></h1>
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium"
+            :class="statusClass(order.achievement_status)"
+            x-text="order.achievement_status"></span>
+        </div>
+        <p class="text-sm text-gray-500 mt-1">
+          注文日時: <span x-text="formatDateTime(order.ordered_at)"></span>
+        </p>
+        <!-- Action Buttons -->
+        <div class="flex gap-2 mt-4" x-show="order.achievement_status === 'pending' || order.achievement_status === 'confirmed'">
+          <button x-show="order.achievement_status === 'pending'"
+            @click="openShipModal()"
+            class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition">出荷処理</button>
+          <button @click="cancelOrder()"
+            class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600 transition">キャンセル</button>
+        </div>
+      </div>
+
+      <!-- 2. Items -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-4">
+        <h2 class="text-sm font-bold text-gray-700 mb-3">注文商品</h2>
+
+        <!-- items がある場合 -->
+        <template x-if="order.items && order.items.length > 0">
+          <div>
+            <table class="w-full text-sm mb-3">
+              <thead>
+                <tr class="border-b border-gray-200 text-xs text-gray-500">
+                  <th class="text-left py-2">商品名</th>
+                  <th class="text-right py-2 px-2">数量</th>
+                  <th class="text-right py-2 px-2">単価</th>
+                  <th class="text-right py-2">小計</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="item in order.items" :key="item.product_id">
+                  <tr class="border-b border-gray-50">
+                    <td class="py-2" x-text="getProductName(item.product_id)"></td>
+                    <td class="py-2 px-2 text-right" x-text="item.qty"></td>
+                    <td class="py-2 px-2 text-right" x-text="'¥' + getProductPrice(item.product_id).toLocaleString()"></td>
+                    <td class="py-2 text-right" x-text="'¥' + (getProductPrice(item.product_id) * item.qty).toLocaleString()"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <div class="space-y-1 text-sm text-right">
+              <div>商品合計: <span class="font-medium" x-text="'¥' + order.product_amount_after_discount.toLocaleString()"></span></div>
+              <div>送料: <span class="font-medium" x-text="'¥' + (order.shipping_fee || 0).toLocaleString()"></span></div>
+              <div x-show="order.fee_amount">手数料: <span class="font-medium" x-text="'¥' + (order.fee_amount || 0).toLocaleString()"></span></div>
+              <div class="text-base font-bold pt-1 border-t border-gray-200">
+                合計: <span x-text="'¥' + calcTotal(order).toLocaleString()"></span>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- items がない場合（Phase 1 形式） -->
+        <template x-if="!order.items || order.items.length === 0">
+          <div class="space-y-1 text-sm text-right">
+            <div>商品代金: <span class="font-medium" x-text="'¥' + (order.product_amount_after_discount || 0).toLocaleString()"></span></div>
+            <div>送料: <span class="font-medium" x-text="'¥' + (order.shipping_fee || 0).toLocaleString()"></span></div>
+            <div x-show="order.fee_amount">手数料: <span class="font-medium" x-text="'¥' + (order.fee_amount || 0).toLocaleString()"></span></div>
+            <div class="text-base font-bold pt-1 border-t border-gray-200">
+              合計: <span x-text="'¥' + calcTotal(order).toLocaleString()"></span>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- 3. Customer -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-4">
+        <h2 class="text-sm font-bold text-gray-700 mb-3">お届け先</h2>
+        <template x-if="order.customer && order.customer.name">
+          <div class="text-sm space-y-1.5">
+            <div><span class="text-gray-500 w-20 inline-block">氏名:</span> <span x-text="order.customer.name"></span>
+              <span x-show="order.customer.name_kana" class="text-gray-400 text-xs ml-1" x-text="'(' + (order.customer.name_kana || '') + ')'"></span>
+            </div>
+            <div><span class="text-gray-500 w-20 inline-block">〒:</span> <span x-text="order.customer.zip || '-'"></span></div>
+            <div><span class="text-gray-500 w-20 inline-block">住所:</span>
+              <span x-text="(order.customer.prefecture || '') + (order.customer.city || '') + (order.customer.address1 || '')"></span>
+              <span x-show="order.customer.address2" x-text="' ' + order.customer.address2" class="text-gray-600"></span>
+            </div>
+            <div><span class="text-gray-500 w-20 inline-block">電話:</span> <span x-text="order.customer.phone || '-'"></span></div>
+            <div><span class="text-gray-500 w-20 inline-block">メール:</span> <span x-text="order.customer.email || '-'"></span></div>
+          </div>
+        </template>
+        <template x-if="!order.customer || !order.customer.name">
+          <p class="text-sm text-gray-400">情報なし</p>
+        </template>
+      </div>
+
+      <!-- 4. Delivery Info -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-4">
+        <h2 class="text-sm font-bold text-gray-700 mb-3">配送情報</h2>
+        <div class="text-sm space-y-1.5">
+          <div><span class="text-gray-500 inline-block w-28">お届け希望日:</span> <span x-text="order.delivery && order.delivery.date ? order.delivery.date : '-'"></span></div>
+          <div><span class="text-gray-500 inline-block w-28">時間帯:</span> <span x-text="order.delivery && order.delivery.time_slot ? order.delivery.time_slot : '-'"></span></div>
+          <div><span class="text-gray-500 inline-block w-28">支払方法:</span> <span x-text="paymentLabel(order.payment_method)"></span></div>
+          <div><span class="text-gray-500 inline-block w-28">送状番号:</span> <span class="font-mono" x-text="order.tracking_number || '-'"></span></div>
+        </div>
+      </div>
+
+      <!-- 5. Partner Info -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-4">
+        <h2 class="text-sm font-bold text-gray-700 mb-3">パートナー情報</h2>
+        <template x-if="order.partner_id">
+          <div class="text-sm space-y-1.5">
+            <div><span class="text-gray-500 inline-block w-28">パートナーID:</span> <span class="font-mono" x-text="order.partner_id"></span></div>
+            <div><span class="text-gray-500 inline-block w-28">パートナー名:</span> <span x-text="partnerName"></span></div>
+            <div><span class="text-gray-500 inline-block w-28">追跡日時:</span> <span x-text="formatDateTime(order.partner_tracked_at)"></span></div>
+          </div>
+        </template>
+        <template x-if="!order.partner_id">
+          <p class="text-sm text-gray-400">直接注文</p>
+        </template>
+      </div>
+    </div>
+
+    <!-- Ship Modal -->
+    <div x-show="shipModal.open" x-transition.opacity
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      @click.self="shipModal.open = false">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+        <h3 class="text-lg font-bold mb-4">出荷処理</h3>
+        <div class="mb-3 text-sm">
+          <span class="text-gray-500">注文番号:</span>
+          <span class="font-mono font-medium" x-text="order ? order.order_id : ''"></span>
+        </div>
+        <div class="mb-4 text-sm">
+          <span class="text-gray-500">顧客名:</span>
+          <span class="font-medium" x-text="order && order.customer ? order.customer.name : '-'"></span>
+        </div>
+        <div class="mb-5">
+          <label class="block text-sm font-medium text-gray-700 mb-1">送状番号 <span class="text-red-500">*</span></label>
+          <input type="text" x-model="shipModal.trackingNumber"
+            placeholder="例: 1234-5678-9012"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+          <p x-show="shipModal.error" class="text-red-500 text-xs mt-1" x-text="shipModal.error"></p>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button @click="shipModal.open = false"
+            class="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition">キャンセル</button>
+          <button @click="submitShip()"
+            :disabled="shipModal.processing"
+            class="px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700 transition disabled:opacity-50">
+            <span x-show="!shipModal.processing">出荷確定</span>
+            <span x-show="shipModal.processing">処理中...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div x-show="toast.show" x-transition.opacity.duration.300ms
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-lg shadow-lg text-sm text-white"
+      :class="toast.type === 'error' ? 'bg-red-600' : 'bg-gray-800'"
+      x-text="toast.message"></div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center text-xs text-gray-400 py-4 border-t border-gray-100">
+    &copy; 2026 注文管理システム
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/admin-config.js"></script>
+  <script src="js/admin-api.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script>
+    function orderDetail() {
+      return {
+        order: null,
+        partners: [],
+        products: [],
+        partnerName: '',
+        loading: true,
+        error: null,
+        shipModal: {
+          open: false,
+          trackingNumber: '',
+          processing: false,
+          error: ''
+        },
+        toast: { show: false, message: '', type: 'success' },
+
+        async init() {
+          const params = new URLSearchParams(window.location.search);
+          const orderId = params.get('id');
+          if (!orderId) {
+            this.error = '注文IDが指定されていません';
+            this.loading = false;
+            return;
+          }
+
+          // パートナー一覧と商品一覧を並行取得
+          const [orderRes, partnersRes, productsRes] = await Promise.all([
+            AdminAPI.fetchOrder(orderId),
+            AdminAPI.fetchPartners(),
+            fetch(ADMIN_CONFIG.API_BASE + '/api/product/list').then(r => r.json()).catch(() => [])
+          ]);
+
+          if (orderRes.error) {
+            this.error = orderRes.error;
+            this.loading = false;
+            return;
+          }
+
+          this.order = orderRes;
+          this.partners = Array.isArray(partnersRes) ? partnersRes : [];
+          this.products = Array.isArray(productsRes) ? productsRes : [];
+
+          // パートナー名を解決
+          if (this.order.partner_id) {
+            const p = this.partners.find(p => p.partner_id === this.order.partner_id);
+            this.partnerName = p ? p.partner_name : this.order.partner_id;
+          }
+
+          this.loading = false;
+        },
+
+        formatDateTime(iso) {
+          if (!iso) return '-';
+          const d = new Date(iso);
+          return d.getFullYear() + '/' +
+                 String(d.getMonth() + 1).padStart(2, '0') + '/' +
+                 String(d.getDate()).padStart(2, '0') + ' ' +
+                 String(d.getHours()).padStart(2, '0') + ':' +
+                 String(d.getMinutes()).padStart(2, '0');
+        },
+
+        calcTotal(o) {
+          return (o.product_amount_after_discount || 0) + (o.shipping_fee || 0) + (o.fee_amount || 0);
+        },
+
+        statusClass(status) {
+          if (status === 'pending') return 'bg-amber-100 text-amber-700';
+          if (status === 'confirmed') return 'bg-green-100 text-green-700';
+          if (status === 'cancelled') return 'bg-red-100 text-red-700';
+          return 'bg-gray-100 text-gray-600';
+        },
+
+        paymentLabel(method) {
+          const map = { cod: '代金引換', bank_transfer: '銀行振込', bank: '銀行振込', credit: 'クレジットカード' };
+          return map[method] || method || '-';
+        },
+
+        getProductName(productId) {
+          const p = this.products.find(p => p.product_id === productId);
+          return p ? p.name : productId;
+        },
+
+        getProductPrice(productId) {
+          const p = this.products.find(p => p.product_id === productId);
+          return p ? p.price : 0;
+        },
+
+        openShipModal() {
+          this.shipModal = { open: true, trackingNumber: '', processing: false, error: '' };
+        },
+
+        async submitShip() {
+          if (!this.shipModal.trackingNumber.trim()) {
+            this.shipModal.error = '送状番号を入力してください';
+            return;
+          }
+          this.shipModal.processing = true;
+          this.shipModal.error = '';
+          const res = await AdminAPI.shipOrder(this.order.order_id, this.shipModal.trackingNumber.trim());
+          if (res.error) {
+            this.shipModal.error = res.error;
+            this.shipModal.processing = false;
+          } else {
+            this.shipModal.open = false;
+            this.showToast('出荷処理が完了しました');
+            setTimeout(() => location.reload(), 800);
+          }
+        },
+
+        async cancelOrder() {
+          if (!confirm('本当にキャンセルしますか？\n注文番号: ' + this.order.order_id)) return;
+          const res = await AdminAPI.cancelOrder(this.order.order_id);
+          if (res.error) {
+            this.showToast(res.error, 'error');
+          } else {
+            this.showToast('キャンセルしました');
+            setTimeout(() => location.reload(), 800);
+          }
+        },
+
+        showToast(msg, type = 'success') {
+          this.toast = { show: true, message: msg, type };
+          setTimeout(() => { this.toast.show = false; }, 2500);
+        }
+      };
+    }
+  </script>
+</body>
+</html>
