@@ -94,6 +94,33 @@
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
+              <label class="block text-sm text-gray-600 mb-1">郵便番号 <span class="text-red-400">*</span></label>
+              <input type="text" x-model="orderer.zip" placeholder="150-0001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">都道府県 <span class="text-red-400">*</span></label>
+              <select x-model="orderer.prefecture" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
+                <option value="">選択してください</option>
+                <template x-for="pref in prefectures" :key="pref">
+                  <option :value="pref" x-text="pref"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">市区町村 <span class="text-red-400">*</span></label>
+            <input type="text" x-model="orderer.city" placeholder="渋谷区" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">番地 <span class="text-red-400">*</span></label>
+            <input type="text" x-model="orderer.address1" placeholder="神宮前1-2-3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">建物名</label>
+            <input type="text" x-model="orderer.address2" placeholder="ABCビル 301" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
               <label class="block text-sm text-gray-600 mb-1">電話番号 <span class="text-red-400">*</span></label>
               <input type="tel" x-model="orderer.phone" placeholder="090-1234-5678" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
             </div>
@@ -126,11 +153,11 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-sm text-gray-600 mb-1">郵便番号 <span class="text-red-400">*</span></label>
-              <input type="text" x-model="customer.zip" placeholder="150-0001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+              <input type="text" x-model="customer.zip" :readonly="sameAsOrderer" :class="sameAsOrderer && 'bg-gray-100'" placeholder="150-0001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">都道府県 <span class="text-red-400">*</span></label>
-              <select x-model="customer.prefecture" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
+              <select x-model="customer.prefecture" :disabled="sameAsOrderer" :class="sameAsOrderer && 'bg-gray-100'" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
                 <option value="">選択してください</option>
                 <template x-for="pref in prefectures" :key="pref">
                   <option :value="pref" x-text="pref"></option>
@@ -140,15 +167,15 @@
           </div>
           <div>
             <label class="block text-sm text-gray-600 mb-1">市区町村 <span class="text-red-400">*</span></label>
-            <input type="text" x-model="customer.city" placeholder="渋谷区" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            <input type="text" x-model="customer.city" :readonly="sameAsOrderer" :class="sameAsOrderer && 'bg-gray-100'" placeholder="渋谷区" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
           </div>
           <div>
             <label class="block text-sm text-gray-600 mb-1">番地 <span class="text-red-400">*</span></label>
-            <input type="text" x-model="customer.address1" placeholder="神宮前1-2-3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            <input type="text" x-model="customer.address1" :readonly="sameAsOrderer" :class="sameAsOrderer && 'bg-gray-100'" placeholder="神宮前1-2-3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
           </div>
           <div>
             <label class="block text-sm text-gray-600 mb-1">建物名</label>
-            <input type="text" x-model="customer.address2" placeholder="ABCビル 301" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            <input type="text" x-model="customer.address2" :readonly="sameAsOrderer" :class="sameAsOrderer && 'bg-gray-100'" placeholder="ABCビル 301" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
           </div>
           <div>
             <label class="block text-sm text-gray-600 mb-1">電話番号 <span class="text-red-400">*</span></label>
@@ -250,7 +277,7 @@
         products: [],
         loading: true,
         totals: { items: [], subtotal: 0, shippingFee: 0, total: 0 },
-        orderer: { name: '', name_kana: '', phone: '', email: '' },
+        orderer: { name: '', name_kana: '', zip: '', prefecture: '', city: '', address1: '', address2: '', phone: '', email: '' },
         customer: { name: '', name_kana: '', zip: '', prefecture: '', city: '', address1: '', address2: '', phone: '' },
         sameAsOrderer: true,
         delivery: { date: '', time_slot: '' },
@@ -294,6 +321,11 @@
           this.$watch('sameAsOrderer', () => this.syncOrderer());
           this.$watch('orderer.name', () => this.syncOrderer());
           this.$watch('orderer.name_kana', () => this.syncOrderer());
+          this.$watch('orderer.zip', () => this.syncOrderer());
+          this.$watch('orderer.prefecture', () => this.syncOrderer());
+          this.$watch('orderer.city', () => this.syncOrderer());
+          this.$watch('orderer.address1', () => this.syncOrderer());
+          this.$watch('orderer.address2', () => this.syncOrderer());
           this.$watch('orderer.phone', () => this.syncOrderer());
           try {
             this.products = await API.fetchProducts();
@@ -308,6 +340,11 @@
           if (this.sameAsOrderer) {
             this.customer.name = this.orderer.name;
             this.customer.name_kana = this.orderer.name_kana;
+            this.customer.zip = this.orderer.zip;
+            this.customer.prefecture = this.orderer.prefecture;
+            this.customer.city = this.orderer.city;
+            this.customer.address1 = this.orderer.address1;
+            this.customer.address2 = this.orderer.address2;
             this.customer.phone = this.orderer.phone;
           }
         },

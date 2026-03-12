@@ -127,6 +127,11 @@
           <div><span class="text-gray-500 w-20 inline-block">氏名:</span> <span x-text="order.orderer ? order.orderer.name : ''"></span>
             <span x-show="order.orderer && order.orderer.name_kana" class="text-gray-400 text-xs ml-1" x-text="'(' + (order.orderer ? order.orderer.name_kana : '') + ')'"></span>
           </div>
+          <div><span class="text-gray-500 w-20 inline-block">〒:</span> <span x-text="order.orderer ? (order.orderer.zip || '-') : '-'"></span></div>
+          <div><span class="text-gray-500 w-20 inline-block">住所:</span>
+            <span x-text="order.orderer ? ((order.orderer.prefecture || '') + (order.orderer.city || '') + (order.orderer.address1 || '')) : '-'"></span>
+            <span x-show="order.orderer && order.orderer.address2" x-text="' ' + (order.orderer ? order.orderer.address2 : '')" class="text-gray-600"></span>
+          </div>
           <div><span class="text-gray-500 w-20 inline-block">電話:</span> <span x-text="order.orderer ? (order.orderer.phone || '-') : '-'"></span></div>
           <div><span class="text-gray-500 w-20 inline-block">メール:</span> <span x-text="order.orderer ? (order.orderer.email || '-') : '-'"></span></div>
         </div>

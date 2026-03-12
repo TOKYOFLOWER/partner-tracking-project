@@ -1,0 +1,32 @@
+docs/order.html の注文者情報セクションに住所フィールドを追加する。
+
+現在: お名前、フリガナ、電話番号、メールアドレス の4項目のみ
+変更後: お名前、フリガナ、郵便番号、都道府県、市区町村、番地、建物名、電話番号、メールアドレス
+
+Alpine.js データ構造の変更:
+orderer を以下に拡張:
+orderer: { name: '', name_kana: '', zip: '', prefecture: '', city: '', address1: '', address2: '', phone: '', email: '' },
+
+フォームHTMLは既存のお届け先セクションと同じレイアウトで、郵便番号・都道府県セレクト・市区町村・番地・建物名を追加。都道府県は既存のprefectures配列を共用。
+
+「注文者と同じ住所に届ける」チェックON時の動作も変更:
+sameAsOrderer が true の場合、orderer の全フィールド（name, name_kana, zip, prefecture, city, address1, address2, phone）を customer にコピーする。
+
+バリデーション（validateOrdererForm）に追加:
+zip, prefecture, city, address1 を必須に追加。zipは郵便番号形式チェック。
+
+送信データの orderer にも住所フィールドを含める。
+
+gas/Code.gs の変更:
+- setupSheets の orders ヘッダーに orderer_zip, orderer_prefecture, orderer_city, orderer_address1, orderer_address2 を追加
+- handleOrderCreate で orderer の住所を書き込み
+- orderRowToApiFormat で orderer に住所フィールドを含める
+
+gas/SukenekoCsv.gs の変更:
+- 注文者郵便番号 → orderer.zip（お届け先で代用していたのをやめる）
+- 注文者住所（都道府県/市区町村/市区町村以降/建物名等）→ orderer の各フィールド
+
+docs/ordertool/detail.html の変更:
+- 注文者情報セクションに住所を表示
+
+clasp push && git add -A && git commit -m "注文者情報に住所フィールド追加" && git push

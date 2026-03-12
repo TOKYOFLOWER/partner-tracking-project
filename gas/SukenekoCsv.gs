@@ -117,11 +117,12 @@ function _exportSukeneko(pendingOnly) {
       row[6]  = ordererKanaParts[0];                                                           // No.7  注文者名（セイ）
       row[7]  = ordererKanaParts[1];                                                           // No.8  注文者名（メイ）
       row[8]  = ordererEmail;                                                                  // No.9  注文者メールアドレス
-      row[9]  = zipClean;                                                                     // No.10 注文者郵便番号（注文者住所なし→お届け先で代用）
-      row[10] = customer.prefecture || '';                                                    // No.11 注文者住所（都道府県）（お届け先で代用）
-      row[11] = customer.city || '';                                                          // No.12 注文者住所（市区町村）（お届け先で代用）
-      row[12] = customer.address1 || '';                                                      // No.13 注文者住所（市区町村以降）（お届け先で代用）
-      row[13] = customer.address2 || '';                                                      // No.14 注文者住所（建物名等）（お届け先で代用）
+      var ordererZipClean = (orderer.zip || customer.zip || '').replace(/-/g, '');
+      row[9]  = ordererZipClean;                                                              // No.10 注文者郵便番号
+      row[10] = orderer.address1 ? (orderer.prefecture || '') : (customer.prefecture || '');  // No.11 注文者住所（都道府県）
+      row[11] = orderer.address1 ? (orderer.city || '') : (customer.city || '');              // No.12 注文者住所（市区町村）
+      row[12] = orderer.address1 ? (orderer.address1 || '') : (customer.address1 || '');     // No.13 注文者住所（市区町村以降）
+      row[13] = orderer.address1 ? (orderer.address2 || '') : (customer.address2 || '');     // No.14 注文者住所（建物名等）
       row[14] = '';                                                                           // No.15 注文者会社名
       row[15] = '';                                                                           // No.16 注文者部署名
       row[16] = ordererPhone;                                                                  // No.17 注文者電話番号

@@ -62,6 +62,11 @@ function orderRowToApiFormat(row) {
     orderer: row.orderer_name ? {
       name: String(row.orderer_name || ''),
       name_kana: String(row.orderer_name_kana || ''),
+      zip: String(row.orderer_zip || ''),
+      prefecture: String(row.orderer_prefecture || ''),
+      city: String(row.orderer_city || ''),
+      address1: String(row.orderer_address1 || ''),
+      address2: String(row.orderer_address2 || ''),
       phone: String(row.orderer_phone || ''),
       email: String(row.orderer_email || '')
     } : null,
@@ -288,6 +293,11 @@ function handleOrderCreate(body) {
       case 'customer_email': return c.email || '';
       case 'orderer_name': return ord.name || '';
       case 'orderer_name_kana': return ord.name_kana || '';
+      case 'orderer_zip': return ord.zip || '';
+      case 'orderer_prefecture': return ord.prefecture || '';
+      case 'orderer_city': return ord.city || '';
+      case 'orderer_address1': return ord.address1 || '';
+      case 'orderer_address2': return ord.address2 || '';
       case 'orderer_phone': return ord.phone || '';
       case 'orderer_email': return ord.email || '';
       case 'delivery_date': return d.date || '';
@@ -557,7 +567,9 @@ function setupSheets() {
       'customer_name', 'customer_name_kana', 'customer_zip',
       'customer_prefecture', 'customer_city', 'customer_address1',
       'customer_address2', 'customer_phone', 'customer_email',
-      'orderer_name', 'orderer_name_kana', 'orderer_phone', 'orderer_email',
+      'orderer_name', 'orderer_name_kana', 'orderer_zip', 'orderer_prefecture',
+      'orderer_city', 'orderer_address1', 'orderer_address2',
+      'orderer_phone', 'orderer_email',
       'delivery_date', 'delivery_time_slot',
       'partner_id', 'partner_tracked_at',
       'achievement_status', 'tracking_number', 'shipped_at'
