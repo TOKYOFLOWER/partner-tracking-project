@@ -185,8 +185,8 @@
 
       <!-- Submit -->
       <button @click="submit()"
-        :disabled="submitting"
-        :class="submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700 active:scale-[0.98]'"
+        :disabled="submitting || !agreed"
+        :class="(submitting || !agreed) ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700 active:scale-[0.98]'"
         class="w-full text-white font-bold py-3.5 rounded-lg transition text-base">
         <span x-show="!submitting">パートナー登録を申請する</span>
         <span x-show="submitting" class="inline-flex items-center gap-2">
