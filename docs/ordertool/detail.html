@@ -249,7 +249,7 @@
           const [orderRes, partnersRes, productsRes] = await Promise.all([
             AdminAPI.fetchOrder(orderId),
             AdminAPI.fetchPartners(),
-            fetch(ADMIN_CONFIG.API_BASE + '/api/product/list').then(r => r.json()).catch(() => [])
+            fetch(ADMIN_CONFIG.API_BASE + '?action=product_list').then(r => r.json()).catch(() => [])
           ]);
 
           if (orderRes.error) {
