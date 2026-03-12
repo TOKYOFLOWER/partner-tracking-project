@@ -1,11 +1,32 @@
-// API 通信ラッパー
+// API 通信ラッパー（GASバックエンド用）
 const API = {
-  async _fetch(path, options) {
+  async _get(params) {
     try {
-      const res = await fetch(CONFIG.API_BASE + path, options);
+      const qs = new URLSearchParams(params).toString();
+      const res = await fetch(CONFIG.API_BASE + '?' + qs);
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'サーバーエラーが発生しました');
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      return data;
+    } catch (err) {
+      if (err instanceof TypeError) {
+        throw new Error('サーバーに接続できません。ネットワークを確認してください。');
+      }
+      throw err;
+    }
+  },
+
+  async _post(body) {
+    try {
+      const res = await fetch(CONFIG.API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (data.error) {
+        throw new Error(data.error);
       }
       return data;
     } catch (err) {
@@ -17,22 +38,18 @@ const API = {
   },
 
   fetchProducts() {
-    return this._fetch('/api/product/list');
+    return this._get({ action: 'product_list' });
   },
 
   fetchProduct(id) {
-    return this._fetch('/api/product/' + encodeURIComponent(id));
+    return this._get({ action: 'product_detail', product_id: id });
   },
 
   validatePartner(id) {
-    return this._fetch('/api/partner/validate?id=' + encodeURIComponent(id));
+    return this._get({ action: 'partner_validate', id: id });
   },
 
   submitOrder(orderData) {
-    return this._fetch('/api/order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(orderData)
-    });
+    return this._post({ action: 'order_create', ...orderData });
   }
 };
