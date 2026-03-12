@@ -73,7 +73,7 @@
                 placeholder="山田 太郎" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
             </div>
             <div>
-              <label class="block text-sm text-gray-600 mb-1">フリガナ <span class="text-red-400">*</span></label>
+              <label class="block text-sm text-gray-600 mb-1">フリガナ <span class="text-red-400">*</span> <span class="text-gray-400 text-xs font-normal">（自動入力・修正可）</span></label>
               <input type="text" x-model="form.name_kana"
                 @input="if (!$event.isComposing) kanaAutoFill = false"
                 placeholder="ヤマダ タロウ" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
@@ -111,7 +111,7 @@
           </div>
           <div>
             <label class="block text-sm text-gray-600 mb-1">番地 <span class="text-red-400">*</span></label>
-            <input type="text" x-model="form.address1" placeholder="神宮前1-2-3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            <input type="text" x-model="form.address1" placeholder="1-2-3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
           </div>
           <div>
             <label class="block text-sm text-gray-600 mb-1">建物名</label>
@@ -206,6 +206,13 @@
   <script src="js/config.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
   <script>
+    function sanitize(str) {
+      if (!str) return '';
+      return String(str).replace(/[<>"'&]/g, function(ch) {
+        return {'<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','&':'&amp;'}[ch];
+      });
+    }
+
     function hiraganaToKatakana(str) {
       return str.replace(/[\u3041-\u3096]/g, function(ch) {
         return String.fromCharCode(ch.charCodeAt(0) + 96);
@@ -257,20 +264,21 @@
         init() {},
 
         // フリガナ自動入力
+        composingKana: '',
         onNameComposition(e) {
-          if (this.kanaAutoFill && e.data) {
-            this.form.name_kana = this.kanaBuffer + hiraganaToKatakana(e.data);
+          if (!this.kanaAutoFill || !e.data) return;
+          // ひらがなの場合のみバッファ更新（漢字変換後は無視）
+          if (/^[\u3040-\u309F\u30FC\s\u3000]*$/.test(e.data)) {
+            this.composingKana = hiraganaToKatakana(e.data);
           }
         },
         onNameCompositionEnd(e) {
-          if (this.kanaAutoFill && e.data) {
-            this.kanaBuffer += hiraganaToKatakana(e.data);
-            // 確定後スペースを追加（次の文字との区切り）
-            if (this.kanaBuffer && !this.kanaBuffer.endsWith(' ') && !this.kanaBuffer.endsWith('　')) {
-              this.kanaBuffer += '　';
-            }
-            this.form.name_kana = this.kanaBuffer.trimEnd();
+          if (!this.kanaAutoFill) return;
+          if (this.composingKana) {
+            this.kanaBuffer += this.composingKana;
+            this.form.name_kana = this.kanaBuffer;
           }
+          this.composingKana = '';
         },
 
         // 郵便番号から住所自動入力
@@ -307,15 +315,23 @@
           if (!this.form.zip.trim()) {
             errs.push('郵便番号を入力してください');
           } else if (!/^\d{3}-?\d{4}$/.test(this.form.zip.trim())) {
-            errs.push('郵便番号の形式が正しくありません（例: 150-0001）');
+            errs.push('郵便番号は7桁の数字で入力してください');
           }
           if (!this.form.prefecture) errs.push('都道府県を選択してください');
           if (!this.form.city.trim()) errs.push('市区町村を入力してください');
           if (!this.form.address1.trim()) errs.push('番地を入力してください');
           if (!this.form.phone.trim()) {
             errs.push('電話番号を入力してください');
-          } else if (!/^[\d\-]{10,14}$/.test(this.form.phone.trim())) {
-            errs.push('電話番号の形式が正しくありません');
+          } else {
+            var ph = this.form.phone.trim();
+            if (!/^[0-9\-]+$/.test(ph)) {
+              errs.push('電話番号は数字とハイフンで入力してください（10〜15桁）');
+            } else {
+              var phDigits = ph.replace(/-/g, '').length;
+              if (phDigits < 10 || phDigits > 15) {
+                errs.push('電話番号は数字とハイフンで入力してください（10〜15桁）');
+              }
+            }
           }
           if (!this.form.email.trim()) {
             errs.push('メールアドレスを入力してください');
@@ -327,11 +343,11 @@
           if (!this.form.bank_account_number.trim()) {
             errs.push('口座番号を入力してください');
           } else if (!/^\d{7}$/.test(this.form.bank_account_number.trim())) {
-            errs.push('口座番号は数字7桁で入力してください');
+            errs.push('口座番号は7桁の数字で入力してください');
           }
           if (!this.form.bank_account_holder.trim()) {
             errs.push('口座名義を入力してください');
-          } else if (!/^[ァ-ヴー　\s]+$/.test(this.form.bank_account_holder.trim())) {
+          } else if (!/^[ァ-ヶー　]+$/.test(this.form.bank_account_holder.trim())) {
             errs.push('口座名義は全角カタカナで入力してください');
           }
           if (!this.agreed) errs.push('パートナー規約に同意してください');
@@ -348,10 +364,14 @@
           }
           this.submitting = true;
           try {
+            var sanitized = {};
+            for (var key in this.form) {
+              sanitized[key] = (typeof this.form[key] === 'string') ? sanitize(this.form[key]) : this.form[key];
+            }
             var res = await fetch(CONFIG.API_BASE, {
               method: 'POST',
               headers: { 'Content-Type': 'text/plain' },
-              body: JSON.stringify({ action: 'partner_register', ...this.form })
+              body: JSON.stringify({ action: 'partner_register', ...sanitized })
             });
             var data = await res.json();
             if (data.error) {
