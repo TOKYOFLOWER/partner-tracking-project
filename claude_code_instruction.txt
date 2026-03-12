@@ -1,0 +1,40 @@
+以下の作業を行う:
+
+1. gas/Code.gs に GAS APIサーバーのコードを書き込む。以下の全機能を含む:
+   - getSpreadsheet, nowJST, formatJST, jsonResponse, sheetToArray のユーティリティ
+   - orderRowToApiFormat: ordersシートのフラットなカラム（customer_name, customer_zip等）をAPIレスポンス用のネスト構造（order.customer.name等）に変換
+   - loadOrdersForApi
+   - doGet: action パラメータで分岐（product_list, product_detail, partner_validate, partner_list, order_list, order_detail, aggregate, aggregate_monthly）
+   - doPost: action パラメータで分岐（order_create, order_ship, order_cancel）
+   - handleProductList, handleProductDetail
+   - handlePartnerValidate, handlePartnerList
+   - handleOrderCreate: items金額検証、送料計算、パートナー検証、ORD-YYYYMMDD-NNN自動採番(JST)、ordersシートにフラットカラムで書き込み（items JSON, item_names, item_qty, product_amount_after_discount, shipping_fee, fee_amount, payment_method, customer_name, customer_name_kana, customer_zip, customer_prefecture, customer_city, customer_address1, customer_address2, customer_phone, customer_email, delivery_date, delivery_time_slot, partner_id, partner_tracked_at, achievement_status, tracking_number, shipped_at）
+   - handleOrderList（フィルター: status, partner_id, month, search）, handleOrderDetail
+   - handleOrderShip（achievement_status→confirmed, tracking_number, shipped_at設定）, handleOrderCancel
+   - handleAggregate, handleAggregateMonthly
+   - setupSheets: products/partners/ordersシートの初期作成。ordersはフラットカラム版。items JSON列(C列)は非表示。
+   - onOpen は含めない（SukenekoCsv.gs に統合する）
+
+2. gas/SukenekoCsv.gs に助ネコCSV出力機能を書き込む:
+   - onOpen: メニュー「TOKYOFLOWER」に「初期セットアップ」「助ネコCSV出力（未出力の注文）」「助ネコCSV出力（全注文）」を追加
+   - exportSukenekoPending: pending注文のみ対象
+   - exportSukeneko: 全注文対象
+   - _exportSukeneko: 助ネコ仕様書の87項目CSVを生成
+     出力方法: 一時シートにデータ書き出し → そのシートのCSVダウンロードURLをダイアログで表示
+     ダウンロードURL形式: https://docs.google.com/spreadsheets/d/{スプレッドシートID}/gviz/tq?tqx=out:csv&gid={シートID}
+     ダイアログはHtmlService.createHtmlOutputで作成し、ダウンロードリンクを表示する
+     ※Google DriveへのCSV保存はしない
+   - getSukenekoCsvHeader: 87項目のヘッダー配列
+   - splitName: フルネームをスペースで姓名分割
+   - mapPaymentMethod: cod→代金引換, bank_transfer→銀行振込（前払い）
+   - mapTimeSlot: 12-14→12時～14時 等
+   - 注文者＝お届け先として出力
+   - 代引の場合はfee_amountを代引手数料欄(No.58)に設定、決済手数料(No.19)は0
+   - 商品が複数ある場合は商品ごとに明細行を生成
+   - 税込表示（消費税区分: 税込、消費税率: 10）
+
+3. clasp login を実行（ブラウザが開くので認証を待つ）
+
+4. clasp push を実行
+
+5. git add -A && git commit -m "GAS Code.gs + 助ネコCSV出力機能追加" && git push
