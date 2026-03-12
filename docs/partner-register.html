@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>パートナー登録申請 - 花のアトリエ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; }
+  </style>
+</head>
+<body class="bg-white text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-100 sticky top-0 z-30">
+    <div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="index.html" class="text-lg font-bold text-primary-700 tracking-wide">花のアトリエ</a>
+      <span class="text-sm text-gray-400">パートナー登録</span>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 max-w-3xl mx-auto w-full px-4 py-6" x-data="partnerRegister()" x-init="init()">
+
+    <!-- Complete -->
+    <div x-show="completed" class="text-center py-20">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-100 mb-4">
+        <svg class="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+      </div>
+      <h2 class="text-xl font-bold mb-2">パートナー登録申請を受け付けました</h2>
+      <p class="text-gray-500 text-sm mb-1">パートナーID: <span class="font-mono font-bold" x-text="resultId"></span></p>
+      <p class="text-gray-500 text-sm">審査完了後、メールにてご連絡いたします。</p>
+      <a href="index.html" class="inline-block mt-6 bg-primary-600 hover:bg-primary-700 text-white font-medium px-6 py-2.5 rounded-lg transition">トップページへ</a>
+    </div>
+
+    <!-- Form -->
+    <div x-show="!completed">
+      <h1 class="text-xl font-bold mb-6">販売パートナー登録申請</h1>
+
+      <!-- Section 1: Basic Info -->
+      <section class="mb-8">
+        <h2 class="text-base font-bold mb-3 text-gray-700">基本情報</h2>
+        <div class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">お名前 <span class="text-red-400">*</span></label>
+              <input type="text" x-model="form.name" placeholder="山田 太郎" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">フリガナ <span class="text-red-400">*</span></label>
+              <input type="text" x-model="form.name_kana" placeholder="ヤマダ タロウ" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">会社名/屋号</label>
+            <input type="text" x-model="form.company_name" placeholder="株式会社○○（任意）" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Contact -->
+      <section class="mb-8">
+        <h2 class="text-base font-bold mb-3 text-gray-700">連絡先</h2>
+        <div class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">郵便番号 <span class="text-red-400">*</span></label>
+              <input type="text" x-model="form.zip" placeholder="150-0001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">都道府県 <span class="text-red-400">*</span></label>
+              <select x-model="form.prefecture" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
+                <option value="">選択してください</option>
+                <template x-for="pref in prefectures" :key="pref">
+                  <option :value="pref" x-text="pref"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">市区町村 <span class="text-red-400">*</span></label>
+            <input type="text" x-model="form.city" placeholder="渋谷区" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">番地 <span class="text-red-400">*</span></label>
+            <input type="text" x-model="form.address1" placeholder="神宮前1-2-3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">建物名</label>
+            <input type="text" x-model="form.address2" placeholder="ABCビル 301" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">電話番号 <span class="text-red-400">*</span></label>
+              <input type="tel" x-model="form.phone" placeholder="090-1234-5678" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">メールアドレス <span class="text-red-400">*</span></label>
+              <input type="email" x-model="form.email" placeholder="yamada@example.com" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3: Bank -->
+      <section class="mb-8">
+        <h2 class="text-base font-bold mb-3 text-gray-700">口座情報（成果報酬振込先）</h2>
+        <div class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">銀行名 <span class="text-red-400">*</span></label>
+              <input type="text" x-model="form.bank_name" placeholder="○○銀行" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">支店名 <span class="text-red-400">*</span></label>
+              <input type="text" x-model="form.bank_branch" placeholder="○○支店" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">口座種別 <span class="text-red-400">*</span></label>
+            <div class="flex gap-4 mt-1">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="account_type" value="普通" x-model="form.bank_account_type" class="accent-primary-600">
+                <span class="text-sm">普通</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="account_type" value="当座" x-model="form.bank_account_type" class="accent-primary-600">
+                <span class="text-sm">当座</span>
+              </label>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">口座番号 <span class="text-red-400">*</span></label>
+              <input type="text" x-model="form.bank_account_number" placeholder="1234567" maxlength="7" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">口座名義（カタカナ） <span class="text-red-400">*</span></label>
+              <input type="text" x-model="form.bank_account_holder" placeholder="ヤマダ タロウ" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 4: Agreement -->
+      <section class="mb-8">
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" x-model="agreed" class="accent-primary-600 w-4 h-4 mt-0.5">
+          <span class="text-sm text-gray-700">パートナー規約に同意する <span class="text-red-400">*</span></span>
+        </label>
+      </section>
+
+      <!-- Errors -->
+      <div x-show="errors.length > 0" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+        <template x-for="err in errors" :key="err">
+          <p class="text-red-600 text-sm" x-text="err"></p>
+        </template>
+      </div>
+
+      <!-- Server Error -->
+      <div x-show="serverError" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+        <p class="text-red-600 text-sm" x-text="serverError"></p>
+      </div>
+
+      <!-- Submit -->
+      <button @click="submit()"
+        :disabled="submitting"
+        :class="submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700 active:scale-[0.98]'"
+        class="w-full text-white font-bold py-3.5 rounded-lg transition text-base">
+        <span x-show="!submitting">パートナー登録を申請する</span>
+        <span x-show="submitting" class="inline-flex items-center gap-2">
+          <svg class="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+          送信中...
+        </span>
+      </button>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center text-xs text-gray-400 py-4 border-t border-gray-50">
+    &copy; 2026 花のアトリエ
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script>
+    function partnerRegister() {
+      return {
+        form: {
+          name: '', name_kana: '', company_name: '',
+          zip: '', prefecture: '', city: '', address1: '', address2: '',
+          phone: '', email: '',
+          bank_name: '', bank_branch: '', bank_account_type: '普通',
+          bank_account_number: '', bank_account_holder: ''
+        },
+        agreed: false,
+        errors: [],
+        serverError: '',
+        submitting: false,
+        completed: false,
+        resultId: '',
+        prefectures: [
+          '北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県',
+          '茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県',
+          '新潟県','富山県','石川県','福井県','山梨県','長野県',
+          '岐阜県','静岡県','愛知県','三重県',
+          '滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県',
+          '鳥取県','島根県','岡山県','広島県','山口県',
+          '徳島県','香川県','愛媛県','高知県',
+          '福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'
+        ],
+        init() {},
+        validate() {
+          var errs = [];
+          if (!this.form.name.trim()) errs.push('お名前を入力してください');
+          if (!this.form.name_kana.trim()) errs.push('フリガナを入力してください');
+          if (!this.form.zip.trim()) {
+            errs.push('郵便番号を入力してください');
+          } else if (!/^\d{3}-?\d{4}$/.test(this.form.zip.trim())) {
+            errs.push('郵便番号の形式が正しくありません（例: 150-0001）');
+          }
+          if (!this.form.prefecture) errs.push('都道府県を選択してください');
+          if (!this.form.city.trim()) errs.push('市区町村を入力してください');
+          if (!this.form.address1.trim()) errs.push('番地を入力してください');
+          if (!this.form.phone.trim()) {
+            errs.push('電話番号を入力してください');
+          } else if (!/^[\d\-]{10,14}$/.test(this.form.phone.trim())) {
+            errs.push('電話番号の形式が正しくありません');
+          }
+          if (!this.form.email.trim()) {
+            errs.push('メールアドレスを入力してください');
+          } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email.trim())) {
+            errs.push('メールアドレスの形式が正しくありません');
+          }
+          if (!this.form.bank_name.trim()) errs.push('銀行名を入力してください');
+          if (!this.form.bank_branch.trim()) errs.push('支店名を入力してください');
+          if (!this.form.bank_account_number.trim()) {
+            errs.push('口座番号を入力してください');
+          } else if (!/^\d{7}$/.test(this.form.bank_account_number.trim())) {
+            errs.push('口座番号は数字7桁で入力してください');
+          }
+          if (!this.form.bank_account_holder.trim()) {
+            errs.push('口座名義を入力してください');
+          } else if (!/^[ァ-ヴー　\s]+$/.test(this.form.bank_account_holder.trim())) {
+            errs.push('口座名義は全角カタカナで入力してください');
+          }
+          if (!this.agreed) errs.push('パートナー規約に同意してください');
+          return errs;
+        },
+        async submit() {
+          this.errors = [];
+          this.serverError = '';
+          var errs = this.validate();
+          if (errs.length > 0) {
+            this.errors = errs;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+          }
+          this.submitting = true;
+          try {
+            var res = await fetch(CONFIG.API_BASE, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain' },
+              body: JSON.stringify({ action: 'partner_register', ...this.form })
+            });
+            var data = await res.json();
+            if (data.error) {
+              this.serverError = data.error;
+              this.submitting = false;
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              return;
+            }
+            this.resultId = data.partner_id;
+            this.completed = true;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          } catch (e) {
+            this.serverError = 'サーバーに接続できません。ネットワークを確認してください。';
+            this.submitting = false;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }
+      };
+    }
+  </script>
+</body>
+</html>

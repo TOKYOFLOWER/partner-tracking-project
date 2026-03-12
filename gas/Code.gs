@@ -119,6 +119,8 @@ function doGet(e) {
         return handlePartnerValidate(e.parameter.id);
       case 'partner_list':
         return handlePartnerList();
+      case 'partner_detail':
+        return handlePartnerDetail(e.parameter.id);
       case 'order_list':
         return handleOrderList(e.parameter);
       case 'order_detail':
@@ -151,6 +153,10 @@ function doPost(e) {
         return handleOrderShip(body);
       case 'order_cancel':
         return handleOrderCancel(body);
+      case 'partner_register':
+        return handlePartnerRegister(body);
+      case 'partner_update_status':
+        return handlePartnerUpdateStatus(body);
       default:
         return jsonResponse({ error: 'Unknown action: ' + action });
     }
@@ -200,6 +206,105 @@ function handlePartnerValidate(partnerId) {
 function handlePartnerList() {
   var partners = sheetToArray('partners');
   return jsonResponse(partners);
+}
+
+function handlePartnerDetail(partnerId) {
+  if (!partnerId) return jsonResponse({ error: 'id is required' });
+  var partners = sheetToArray('partners');
+  var p = partners.find(function(x) { return x.partner_id === partnerId; });
+  if (!p) return jsonResponse({ error: 'partner not found' });
+  return jsonResponse(p);
+}
+
+// ============================================================
+// パートナー登録・ステータス更新
+// ============================================================
+
+function handlePartnerRegister(body) {
+  // 必須チェック
+  var required = ['name', 'name_kana', 'zip', 'prefecture', 'city', 'address1', 'phone', 'email',
+                   'bank_name', 'bank_branch', 'bank_account_type', 'bank_account_number', 'bank_account_holder'];
+  for (var i = 0; i < required.length; i++) {
+    if (!body[required[i]] || !String(body[required[i]]).trim()) {
+      return jsonResponse({ error: '必須項目が入力されていません: ' + required[i] });
+    }
+  }
+
+  // メール重複チェック
+  var partners = sheetToArray('partners');
+  var dup = partners.find(function(p) { return p.email === body.email; });
+  if (dup) {
+    return jsonResponse({ error: 'このメールアドレスは既に登録されています' });
+  }
+
+  // partner_id 自動採番
+  var maxNum = 0;
+  partners.forEach(function(p) {
+    var m = String(p.partner_id).match(/^ptn(\d+)$/);
+    if (m) {
+      var n = parseInt(m[1], 10);
+      if (n > maxNum) maxNum = n;
+    }
+  });
+  var partnerId = 'ptn' + String(maxNum + 1).padStart(4, '0');
+
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName('partners');
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var newRow = headers.map(function(h) {
+    switch (h) {
+      case 'partner_id': return partnerId;
+      case 'status': return 'pending';
+      case 'created_at': return nowJSTString();
+      case 'partner_name': return body.name || '';
+      case 'partner_name_kana': return body.name_kana || '';
+      case 'company_name': return body.company_name || '';
+      case 'zip': return body.zip || '';
+      case 'prefecture': return body.prefecture || '';
+      case 'city': return body.city || '';
+      case 'address1': return body.address1 || '';
+      case 'address2': return body.address2 || '';
+      case 'phone': return body.phone || '';
+      case 'email': return body.email || '';
+      case 'bank_name': return body.bank_name || '';
+      case 'bank_branch': return body.bank_branch || '';
+      case 'bank_account_type': return body.bank_account_type || '';
+      case 'bank_account_number': return body.bank_account_number || '';
+      case 'bank_account_holder': return body.bank_account_holder || '';
+      case 'commission_plan': return 'standard';
+      case 'memo': return '';
+      default: return '';
+    }
+  });
+
+  sheet.appendRow(newRow);
+  return jsonResponse({ success: true, partner_id: partnerId, message: '申請を受け付けました' });
+}
+
+function handlePartnerUpdateStatus(body) {
+  var partnerId = body.partner_id;
+  var newStatus = body.status;
+  if (!partnerId) return jsonResponse({ error: 'partner_id is required' });
+  if (!newStatus || ['pending', 'active', 'inactive'].indexOf(newStatus) < 0) {
+    return jsonResponse({ error: 'invalid status' });
+  }
+
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName('partners');
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var idCol = headers.indexOf('partner_id');
+  var statusCol = headers.indexOf('status');
+
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][idCol] === partnerId) {
+      sheet.getRange(i + 1, statusCol + 1).setValue(newStatus);
+      var partners = sheetToArray('partners');
+      var p = partners.find(function(x) { return x.partner_id === partnerId; });
+      return jsonResponse(p);
+    }
+  }
+  return jsonResponse({ error: 'partner not found' });
 }
 
 // ============================================================
@@ -553,7 +658,12 @@ function setupSheets() {
   if (!ss.getSheetByName('partners')) {
     var pts = ss.insertSheet('partners');
     pts.appendRow([
-      'partner_id', 'partner_name', 'status', 'commission_plan', 'created_at', 'memo'
+      'partner_id', 'status', 'created_at',
+      'partner_name', 'partner_name_kana', 'company_name',
+      'zip', 'prefecture', 'city', 'address1', 'address2',
+      'phone', 'email',
+      'bank_name', 'bank_branch', 'bank_account_type', 'bank_account_number', 'bank_account_holder',
+      'commission_plan', 'memo'
     ]);
   }
 
@@ -579,5 +689,5 @@ function setupSheets() {
     os.hideColumns(3);
   }
 
-  SpreadsheetApp.getUi().alert('セットアップが完了しました。');
+  SpreadsheetApp.getUi().alert('セットアップが完了しました。\n※既存データがあるシートは再作成されません。カラム変更が必要な場合はシートを手動で削除してから再実行してください。');
 }

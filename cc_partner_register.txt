@@ -1,0 +1,179 @@
+販売パートナー登録システムを構築する。
+
+## 概要
+- パートナー登録申請フォーム（GitHub Pages）
+- パートナー管理画面（ordertool に追加）
+- GAS API にパートナー登録エンドポイント追加
+- partners シートのカラム拡張
+
+## 1. partners シートのカラム拡張
+
+現在のカラム: partner_id, partner_name, status, commission_plan, created_at, memo
+
+新しいカラム構成（setupSheets を更新）:
+partner_id, status, created_at, partner_name, partner_name_kana, company_name, zip, prefecture, city, address1, address2, phone, email, bank_name, bank_branch, bank_account_type, bank_account_number, bank_account_holder, commission_plan, memo
+
+各カラムの説明:
+- partner_id: ptn+4桁数字（自動採番）
+- status: pending（申請中）/ active（承認済み）/ inactive（無効）
+- created_at: 申請日時
+- partner_name: 氏名
+- partner_name_kana: フリガナ
+- company_name: 会社名/屋号（任意）
+- zip: 郵便番号
+- prefecture: 都道府県
+- city: 市区町村
+- address1: 番地
+- address2: 建物名（任意）
+- phone: 電話番号
+- email: メールアドレス
+- bank_name: 銀行名
+- bank_branch: 支店名
+- bank_account_type: 口座種別（普通/当座）
+- bank_account_number: 口座番号
+- bank_account_holder: 口座名義（カタカナ）
+- commission_plan: 報酬プラン
+- memo: メモ（管理者用）
+
+setupSheets実行時、既存のパートナーデータがある場合は削除されるので注意書きをalertに追加。
+
+## 2. docs/partner-register.html（パートナー登録申請フォーム）
+
+デザイン: 既存の注文フォーム（order.html）と同じトーン（白背景+グリーン系）
+Tailwind CSS + Alpine.js
+
+### フォーム構成:
+
+セクション1: 基本情報
+- お名前（必須）
+- フリガナ（必須）
+- 会社名/屋号（任意）
+
+セクション2: 連絡先
+- 郵便番号（必須）
+- 都道府県（必須・セレクト）
+- 市区町村（必須）
+- 番地（必須）
+- 建物名（任意）
+- 電話番号（必須）
+- メールアドレス（必須）
+
+セクション3: 口座情報（成果報酬振込先）
+- 銀行名（必須）
+- 支店名（必須）
+- 口座種別（必須・ラジオ: 普通/当座）
+- 口座番号（必須・数字7桁）
+- 口座名義（必須・カタカナ）
+
+セクション4: 規約同意
+- チェックボックス「パートナー規約に同意する」（必須）
+
+送信ボタン: 「パートナー登録を申請する」
+二重送信防止（ボタン無効化+ローディング表示）
+
+### 送信データ:
+POST で GAS に送信:
+{
+  action: "partner_register",
+  name: "...",
+  name_kana: "...",
+  company_name: "...",
+  zip: "...",
+  prefecture: "...",
+  city: "...",
+  address1: "...",
+  address2: "...",
+  phone: "...",
+  email: "...",
+  bank_name: "...",
+  bank_branch: "...",
+  bank_account_type: "普通",
+  bank_account_number: "...",
+  bank_account_holder: "..."
+}
+
+### 完了画面:
+送信成功後、同じページ内で完了メッセージを表示:
+「パートナー登録申請を受け付けました。審査完了後、メールにてご連絡いたします。」
+
+### バリデーション:
+- 全必須項目の入力チェック
+- メール形式チェック
+- 電話番号形式チェック
+- 郵便番号形式チェック
+- 口座番号: 数字のみ、7桁
+- 口座名義: カタカナのみ（全角カタカナ+全角スペース）
+- 規約同意チェック
+
+## 3. gas/Code.gs の変更
+
+### doPost に partner_register アクションを追加:
+
+handlePartnerRegister(body):
+1. バリデーション（サーバー側でも最低限チェック: 必須項目）
+2. partner_id の自動採番: 既存の最大番号+1（ptn0001, ptn0002, ...）
+3. partners シートに1行追加:
+   - partner_id: 自動採番
+   - status: "pending"
+   - created_at: nowJSTString()
+   - 他のフィールドは body から取得
+   - commission_plan: "standard"（デフォルト）
+   - memo: ""
+4. レスポンス: { success: true, partner_id: "ptn0004", message: "申請を受け付けました" }
+
+### メール重複チェック:
+同じメールアドレスで既に登録がある場合はエラーを返す:
+{ error: "このメールアドレスは既に登録されています" }
+
+## 4. docs/ordertool/partners.html（パートナー管理画面）
+
+ordertool のナビゲーションに「パートナー」タブを追加（全ページの nav に）。
+
+### 一覧表示:
+- テーブル: partner_id, 氏名, 会社名, メール, 電話, ステータス, 登録日
+- ステータスフィルター: すべて / pending / active / inactive
+- ステータスバッジ: pending=黄色, active=緑, inactive=赤
+- 行クリックで詳細モーダルまたは詳細ページ
+
+### ステータス変更:
+- pending → active（承認）ボタン
+- active → inactive（無効化）ボタン
+- inactive → active（再有効化）ボタン
+- GAS API: POST { action: "partner_update_status", partner_id: "ptn0004", status: "active" }
+
+### 詳細表示（モーダルで十分）:
+- 基本情報（氏名、フリガナ、会社名）
+- 連絡先（住所、電話、メール）
+- 口座情報（銀行名、支店名、口座種別、口座番号、口座名義）
+- パートナーURL: https://order.tokyoflower.jp/?id=ptn0004（コピーボタン付き）
+- ステータス変更ボタン
+
+## 5. gas/Code.gs に追加する API
+
+### partner_update_status（POST）:
+handlePartnerUpdateStatus(body):
+- body.partner_id と body.status を受け取る
+- partners シートの該当行の status を更新
+- レスポンス: 更新後のパートナーデータ
+
+### partner_detail（GET）:
+handlePartnerDetail(id):
+- partner_id で partners シートを検索
+- 全フィールドを返す
+
+## 6. ordertool 全ページのナビ更新
+
+docs/ordertool/index.html, detail.html, aggregate.html のナビに「パートナー」リンクを追加:
+<a href="partners.html" class="px-4 py-1.5 rounded text-sm font-medium text-indigo-200 hover:bg-indigo-600 hover:text-white transition">パートナー</a>
+
+## 7. ordertool/js/admin-api.js に追加
+
+- fetchPartnerDetail(id): GET action=partner_detail&id=xxx
+- updatePartnerStatus(partnerId, status): POST { action: "partner_update_status", partner_id, status }
+
+## 作業手順
+
+1. 上記の変更を全て実施
+2. clasp push
+3. git add -A && git commit -m "パートナー登録システム構築" && git push
+4. 完了報告

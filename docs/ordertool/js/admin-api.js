@@ -85,5 +85,15 @@ const AdminAPI = {
   // パートナー一覧
   fetchPartners() {
     return this._get({ action: 'partner_list' });
+  },
+
+  // パートナー詳細
+  fetchPartnerDetail(id) {
+    return this._get({ action: 'partner_detail', id: id });
+  },
+
+  // パートナーステータス更新
+  updatePartnerStatus(partnerId, status) {
+    return this._post({ action: 'partner_update_status', partner_id: partnerId, status: status });
   }
 };
