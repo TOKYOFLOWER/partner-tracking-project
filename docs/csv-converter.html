@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSV変換ツール - 花のアトリエ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/encoding-japanese/2.2.0/encoding.min.js"></script>
+  <style>
+    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; }
+  </style>
+</head>
+<body class="bg-white text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-100 sticky top-0 z-30">
+    <div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="index.html" class="text-lg font-bold text-primary-700 tracking-wide">花のアトリエ</a>
+      <span class="text-sm text-gray-400">CSV変換ツール</span>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
+
+    <h1 class="text-xl font-bold mb-2">助ネコCSV Shift_JIS変換</h1>
+    <p class="text-sm text-gray-500 mb-6">スプレッドシートからダウンロードしたCSV（UTF-8）を、助ネコにアップロードできるShift_JISに変換します。</p>
+
+    <!-- How to use -->
+    <div class="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-6 text-sm text-gray-700">
+      <p class="font-bold text-primary-700 mb-2">使い方</p>
+      <ol class="list-decimal list-inside space-y-1">
+        <li>スプレッドシートの「助ネコCSV_tmp」シートからCSVをダウンロード</li>
+        <li>下のエリアにCSVファイルをドラッグ＆ドロップ（またはクリックして選択）</li>
+        <li>自動でShift_JISに変換されたファイルがダウンロードされます</li>
+        <li>変換後のCSVを助ネコにアップロード</li>
+      </ol>
+    </div>
+
+    <!-- Drop zone -->
+    <div id="dropZone"
+      class="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer transition hover:border-primary-400 hover:bg-primary-50"
+      onclick="document.getElementById('fileInput').click()">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+      </svg>
+      <p class="text-gray-500 text-sm mb-1">CSVファイルをここにドラッグ＆ドロップ</p>
+      <p class="text-gray-400 text-xs">またはクリックしてファイルを選択</p>
+      <input type="file" id="fileInput" accept=".csv" class="hidden">
+    </div>
+
+    <!-- Status -->
+    <div id="status" class="mt-4 text-center text-sm hidden"></div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center text-xs text-gray-400 py-4 border-t border-gray-50">
+    &copy; 2026 花のアトリエ
+  </footer>
+
+  <script>
+    var dropZone = document.getElementById('dropZone');
+    var fileInput = document.getElementById('fileInput');
+    var statusEl = document.getElementById('status');
+
+    // Drag & Drop
+    dropZone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      dropZone.classList.add('border-primary-400', 'bg-primary-50');
+    });
+    dropZone.addEventListener('dragleave', function(e) {
+      e.preventDefault();
+      dropZone.classList.remove('border-primary-400', 'bg-primary-50');
+    });
+    dropZone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      dropZone.classList.remove('border-primary-400', 'bg-primary-50');
+      if (e.dataTransfer.files.length > 0) {
+        convertFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    // File input
+    fileInput.addEventListener('change', function() {
+      if (fileInput.files.length > 0) {
+        convertFile(fileInput.files[0]);
+        fileInput.value = '';
+      }
+    });
+
+    function showStatus(msg, type) {
+      statusEl.className = 'mt-4 text-center text-sm';
+      if (type === 'success') {
+        statusEl.classList.add('text-primary-700');
+      } else if (type === 'error') {
+        statusEl.classList.add('text-red-600');
+      } else {
+        statusEl.classList.add('text-gray-500');
+      }
+      statusEl.textContent = msg;
+      statusEl.classList.remove('hidden');
+    }
+
+    function convertFile(file) {
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        showStatus('CSVファイルを選択してください。', 'error');
+        return;
+      }
+
+      showStatus('変換中...', 'info');
+
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var text = e.target.result;
+
+          // BOM除去
+          if (text.charCodeAt(0) === 0xFEFF) {
+            text = text.substring(1);
+          }
+
+          // UTF-8 → Shift_JIS
+          var unicodeArray = Encoding.stringToCode(text);
+          var sjisArray = Encoding.convert(unicodeArray, {
+            to: 'SJIS',
+            from: 'UNICODE'
+          });
+          var uint8Array = new Uint8Array(sjisArray);
+
+          // ダウンロード
+          var blob = new Blob([uint8Array], { type: 'text/csv' });
+          var baseName = file.name.replace(/\.csv$/i, '');
+          var downloadName = baseName + '_sjis.csv';
+
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = downloadName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(a.href);
+
+          showStatus(downloadName + ' をダウンロードしました。', 'success');
+        } catch (err) {
+          showStatus('変換エラー: ' + err.message, 'error');
+        }
+      };
+      reader.onerror = function() {
+        showStatus('ファイルの読み込みに失敗しました。', 'error');
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+  </script>
+</body>
+</html>
