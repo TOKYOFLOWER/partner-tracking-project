@@ -49,7 +49,7 @@
 
     <div x-show="!loading && totals.items.length > 0">
 
-      <!-- Order Summary (read-only) -->
+      <!-- 1. Order Summary (read-only) -->
       <section class="mb-8">
         <h2 class="text-base font-bold mb-3 text-gray-700">注文内容</h2>
         <div class="border border-gray-100 rounded-xl p-4 space-y-2 bg-gray-50 text-sm">
@@ -78,18 +78,49 @@
         </div>
       </section>
 
-      <!-- Customer Form -->
+      <!-- 2. Orderer Info (NEW) -->
       <section class="mb-8">
-        <h2 class="text-base font-bold mb-3 text-gray-700">お届け先</h2>
+        <h2 class="text-base font-bold mb-3 text-gray-700">注文者情報</h2>
         <div class="space-y-3">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-sm text-gray-600 mb-1">お名前 <span class="text-red-400">*</span></label>
-              <input type="text" x-model="customer.name" placeholder="山田 太郎" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+              <input type="text" x-model="orderer.name" placeholder="山田 太郎" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">フリガナ <span class="text-red-400">*</span></label>
-              <input type="text" x-model="customer.name_kana" placeholder="ヤマダ タロウ" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+              <input type="text" x-model="orderer.name_kana" placeholder="ヤマダ タロウ" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">電話番号 <span class="text-red-400">*</span></label>
+              <input type="tel" x-model="orderer.phone" placeholder="090-1234-5678" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">メールアドレス <span class="text-red-400">*</span></label>
+              <input type="email" x-model="orderer.email" placeholder="yamada@example.com" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Delivery Address -->
+      <section class="mb-8">
+        <h2 class="text-base font-bold mb-3 text-gray-700">お届け先</h2>
+        <label class="flex items-center gap-2 mb-3 cursor-pointer">
+          <input type="checkbox" x-model="sameAsOrderer" class="accent-primary-600 w-4 h-4">
+          <span class="text-sm text-gray-600">注文者と同じ住所に届ける</span>
+        </label>
+        <div class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">お名前 <span class="text-red-400">*</span></label>
+              <input type="text" x-model="customer.name" :readonly="sameAsOrderer" :class="sameAsOrderer && 'bg-gray-100'" placeholder="山田 太郎" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">フリガナ <span class="text-red-400">*</span></label>
+              <input type="text" x-model="customer.name_kana" :readonly="sameAsOrderer" :class="sameAsOrderer && 'bg-gray-100'" placeholder="ヤマダ タロウ" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
             </div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -119,20 +150,14 @@
             <label class="block text-sm text-gray-600 mb-1">建物名</label>
             <input type="text" x-model="customer.address2" placeholder="ABCビル 301" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="block text-sm text-gray-600 mb-1">電話番号 <span class="text-red-400">*</span></label>
-              <input type="tel" x-model="customer.phone" placeholder="090-1234-5678" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
-            </div>
-            <div>
-              <label class="block text-sm text-gray-600 mb-1">メールアドレス <span class="text-red-400">*</span></label>
-              <input type="email" x-model="customer.email" placeholder="yamada@example.com" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
-            </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">電話番号 <span class="text-red-400">*</span></label>
+            <input type="tel" x-model="customer.phone" :readonly="sameAsOrderer" :class="sameAsOrderer && 'bg-gray-100'" placeholder="090-1234-5678" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
           </div>
         </div>
       </section>
 
-      <!-- Delivery -->
+      <!-- 4. Delivery -->
       <section class="mb-8">
         <h2 class="text-base font-bold mb-3 text-gray-700">お届け希望</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -159,7 +184,7 @@
         </div>
       </section>
 
-      <!-- Payment -->
+      <!-- 5. Payment -->
       <section class="mb-8">
         <h2 class="text-base font-bold mb-3 text-gray-700">お支払い方法</h2>
         <div class="space-y-2">
@@ -225,7 +250,9 @@
         products: [],
         loading: true,
         totals: { items: [], subtotal: 0, shippingFee: 0, total: 0 },
-        customer: { name: '', name_kana: '', zip: '', prefecture: '', city: '', address1: '', address2: '', phone: '', email: '' },
+        orderer: { name: '', name_kana: '', phone: '', email: '' },
+        customer: { name: '', name_kana: '', zip: '', prefecture: '', city: '', address1: '', address2: '', phone: '' },
+        sameAsOrderer: true,
         delivery: { date: '', time_slot: '' },
         paymentMethod: 'cod',
         errors: [],
@@ -264,6 +291,10 @@
           return dates;
         },
         async init() {
+          this.$watch('sameAsOrderer', () => this.syncOrderer());
+          this.$watch('orderer.name', () => this.syncOrderer());
+          this.$watch('orderer.name_kana', () => this.syncOrderer());
+          this.$watch('orderer.phone', () => this.syncOrderer());
           try {
             this.products = await API.fetchProducts();
           } catch (e) {
@@ -273,6 +304,13 @@
           }
           this.recalc();
         },
+        syncOrderer() {
+          if (this.sameAsOrderer) {
+            this.customer.name = this.orderer.name;
+            this.customer.name_kana = this.orderer.name_kana;
+            this.customer.phone = this.orderer.phone;
+          }
+        },
         recalc() {
           this.totals = Cart.calculateTotals(this.products);
         },
@@ -280,8 +318,10 @@
           this.errors = [];
           this.serverError = '';
 
-          // Validate customer
-          var validationErrors = Validation.validateCustomerForm(this.customer);
+          // Validate orderer
+          var validationErrors = Validation.validateOrdererForm(this.orderer);
+          // Validate customer (delivery address)
+          validationErrors = validationErrors.concat(Validation.validateCustomerForm(this.customer));
           if (!this.delivery.date) {
             validationErrors.push('お届け日を選択してください');
           }
@@ -302,6 +342,7 @@
             shipping_fee: this.totals.shippingFee,
             fee_amount: this.feeAmount,
             payment_method: this.paymentMethod,
+            orderer: this.orderer,
             customer: this.customer,
             delivery: {
               date: this.delivery.date,
@@ -316,7 +357,6 @@
 
           try {
             var result = await API.submitOrder(orderData);
-            // Save order info for complete page
             sessionStorage.setItem('last_order', JSON.stringify({
               order_id: result.order_id,
               total: result.total,

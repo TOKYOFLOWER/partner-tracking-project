@@ -52,9 +52,19 @@ function _exportSukeneko(pendingOnly) {
     if (items.length === 0) return;
 
     var customer = order.customer || {};
+    var orderer = order.orderer || {};
     var delivery = order.delivery || {};
-    var nameParts = splitName(customer.name || '');
-    var kanaParts = splitName(customer.name_kana || '');
+
+    // 注文者（ordererがあればorderer、なければcustomerで代用）
+    var ordererNameParts = splitName(orderer.name || customer.name || '');
+    var ordererKanaParts = splitName(orderer.name_kana || customer.name_kana || '');
+    var ordererEmail = orderer.email || customer.email || '';
+    var ordererPhone = orderer.phone || customer.phone || '';
+
+    // お届け先
+    var customerNameParts = splitName(customer.name || '');
+    var customerKanaParts = splitName(customer.name_kana || '');
+
     var paymentStr = mapPaymentMethod(order.payment_method);
     var timeSlotStr = mapTimeSlot(delivery.time_slot);
 
@@ -102,19 +112,19 @@ function _exportSukeneko(pendingOnly) {
       row[1]  = order.order_id;                                                               // No.2  受注番号
       row[2]  = orderedAtDate;                                                                    // No.3  注文日
       row[3]  = orderedAtTime;                                                                    // No.4  注文時間
-      row[4]  = nameParts[0];                                                                 // No.5  注文者名（姓）
-      row[5]  = nameParts[1];                                                                 // No.6  注文者名（名）
-      row[6]  = kanaParts[0];                                                                 // No.7  注文者名（セイ）
-      row[7]  = kanaParts[1];                                                                 // No.8  注文者名（メイ）
-      row[8]  = customer.email || '';                                                         // No.9  注文者メールアドレス
-      row[9]  = zipClean;                                                                     // No.10 注文者郵便番号
-      row[10] = customer.prefecture || '';                                                    // No.11 注文者住所（都道府県）
-      row[11] = customer.city || '';                                                          // No.12 注文者住所（市区町村）
-      row[12] = customer.address1 || '';                                                      // No.13 注文者住所（市区町村以降）
-      row[13] = customer.address2 || '';                                                      // No.14 注文者住所（建物名等）
+      row[4]  = ordererNameParts[0];                                                           // No.5  注文者名（姓）
+      row[5]  = ordererNameParts[1];                                                           // No.6  注文者名（名）
+      row[6]  = ordererKanaParts[0];                                                           // No.7  注文者名（セイ）
+      row[7]  = ordererKanaParts[1];                                                           // No.8  注文者名（メイ）
+      row[8]  = ordererEmail;                                                                  // No.9  注文者メールアドレス
+      row[9]  = zipClean;                                                                     // No.10 注文者郵便番号（注文者住所なし→お届け先で代用）
+      row[10] = customer.prefecture || '';                                                    // No.11 注文者住所（都道府県）（お届け先で代用）
+      row[11] = customer.city || '';                                                          // No.12 注文者住所（市区町村）（お届け先で代用）
+      row[12] = customer.address1 || '';                                                      // No.13 注文者住所（市区町村以降）（お届け先で代用）
+      row[13] = customer.address2 || '';                                                      // No.14 注文者住所（建物名等）（お届け先で代用）
       row[14] = '';                                                                           // No.15 注文者会社名
       row[15] = '';                                                                           // No.16 注文者部署名
-      row[16] = customer.phone || '';                                                         // No.17 注文者電話番号
+      row[16] = ordererPhone;                                                                  // No.17 注文者電話番号
       row[17] = paymentStr;                                                                   // No.18 決済方法
       row[18] = settlementFee;                                                                // No.19 決済手数料
       row[19] = 0;                                                                            // No.20 利用ポイント数
@@ -131,11 +141,11 @@ function _exportSukeneko(pendingOnly) {
       row[28] = 0;                                                                            // No.81 請求金額内訳（税率8％）
       row[29] = 0;                                                                            // No.82 請求金額内訳（税率0％）
 
-      // --- No.25-36: お届け先（注文者と同じ） ---
-      row[30] = nameParts[0];                                                                 // No.25 お届け先名（姓）
-      row[31] = nameParts[1];                                                                 // No.26 お届け先名（名）
-      row[32] = kanaParts[0];                                                                 // No.27 お届け先名（セイ）
-      row[33] = kanaParts[1];                                                                 // No.28 お届け先名（メイ）
+      // --- No.25-36: お届け先 ---
+      row[30] = customerNameParts[0];                                                          // No.25 お届け先名（姓）
+      row[31] = customerNameParts[1];                                                          // No.26 お届け先名（名）
+      row[32] = customerKanaParts[0];                                                          // No.27 お届け先名（セイ）
+      row[33] = customerKanaParts[1];                                                          // No.28 お届け先名（メイ）
       row[34] = zipClean;                                                                     // No.29 お届け先郵便番号
       row[35] = customer.prefecture || '';                                                    // No.30 お届け先住所（都道府県）
       row[36] = customer.city || '';                                                          // No.31 お届け先住所（市区町村）

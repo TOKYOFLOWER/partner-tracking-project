@@ -59,6 +59,12 @@ function orderRowToApiFormat(row) {
     shipping_fee: Number(row.shipping_fee) || 0,
     fee_amount: Number(row.fee_amount) || 0,
     payment_method: row.payment_method || null,
+    orderer: row.orderer_name ? {
+      name: String(row.orderer_name || ''),
+      name_kana: String(row.orderer_name_kana || ''),
+      phone: String(row.orderer_phone || ''),
+      email: String(row.orderer_email || '')
+    } : null,
     customer: {
       name: String(row.customer_name || ''),
       name_kana: String(row.customer_name_kana || ''),
@@ -253,7 +259,8 @@ function handleOrderCreate(body) {
   var nextNum = todayOrders.length + 1;
   var orderId = prefix + String(nextNum).padStart(3, '0');
 
-  // customer
+  // orderer / customer
+  var ord = body.orderer || {};
   var c = body.customer || {};
   var d = body.delivery || {};
 
@@ -279,6 +286,10 @@ function handleOrderCreate(body) {
       case 'customer_address2': return c.address2 || '';
       case 'customer_phone': return c.phone || '';
       case 'customer_email': return c.email || '';
+      case 'orderer_name': return ord.name || '';
+      case 'orderer_name_kana': return ord.name_kana || '';
+      case 'orderer_phone': return ord.phone || '';
+      case 'orderer_email': return ord.email || '';
       case 'delivery_date': return d.date || '';
       case 'delivery_time_slot': return d.time_slot || '';
       case 'partner_id': return partnerId || '';
@@ -546,6 +557,7 @@ function setupSheets() {
       'customer_name', 'customer_name_kana', 'customer_zip',
       'customer_prefecture', 'customer_city', 'customer_address1',
       'customer_address2', 'customer_phone', 'customer_email',
+      'orderer_name', 'orderer_name_kana', 'orderer_phone', 'orderer_email',
       'delivery_date', 'delivery_time_slot',
       'partner_id', 'partner_tracked_at',
       'achievement_status', 'tracking_number', 'shipped_at'

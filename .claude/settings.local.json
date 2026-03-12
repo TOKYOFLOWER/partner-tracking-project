@@ -13,7 +13,8 @@
       "Bash(cd \"X:/projects/partner-tracking-project\" && npx clasp login 2>&1)",
       "Bash(cd \"X:/projects/partner-tracking-project\" && npx clasp push 2>&1)",
       "Bash(cd \"X:/projects/partner-tracking-project\" && echo \"y\" | npx clasp push 2>&1)",
-      "Bash(cd \"X:/projects/partner-tracking-project\" && npx clasp push --force 2>&1)"
+      "Bash(cd \"X:/projects/partner-tracking-project\" && npx clasp push --force 2>&1)",
+      "Bash(npx clasp:*)"
     ]
   }
 }

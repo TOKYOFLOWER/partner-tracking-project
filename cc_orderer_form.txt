@@ -1,0 +1,113 @@
+注文フォームに「注文者情報」セクションを追加する。
+花のお届けはギフトが多いため、注文者（注文する人）とお届け先（届ける相手）を分ける。
+
+## 変更ファイル
+
+### 1. docs/order.html
+
+#### フォーム構成を以下の順番にする:
+1. 注文内容（既存・変更なし）
+2. **注文者情報（新規追加）** — セクション見出し「注文者情報」
+   - お名前（必須）、フリガナ（必須）
+   - 電話番号（必須）、メールアドレス（必須）
+3. **お届け先** — 既存セクションを改修
+   - セクション見出しの下に、チェックボックス「注文者と同じ住所に届ける」を追加
+   - チェックON時: お届け先の名前・フリガナ・電話番号を注文者からコピーし、住所フォームを表示（注文者住所は持たないため住所は手入力）
+   - チェックOFF時: 全項目を手入力
+   - フィールド: お名前、フリガナ、郵便番号、都道府県、市区町村、番地、建物名、電話番号
+   - メールアドレスはお届け先には不要（注文者にのみ）
+4. お届け希望（既存・変更なし）
+5. お支払い方法（既存・変更なし）
+
+#### Alpine.js データ構造の変更:
+```javascript
+// 注文者（新規）
+orderer: { name: '', name_kana: '', phone: '', email: '' },
+// お届け先（既存の customer を改名）
+customer: { name: '', name_kana: '', zip: '', prefecture: '', city: '', address1: '', address2: '', phone: '' },
+// チェックボックス
+sameAsOrderer: true,
+```
+
+#### チェックボックスの動作:
+- sameAsOrderer が true の場合、customer.name/name_kana/phone に orderer の値を自動コピー（x-effect で監視）
+- sameAsOrderer が false の場合、customer のフィールドを個別に入力可能に
+
+#### バリデーション:
+- orderer: name, name_kana, phone, email が必須。email形式チェック。phone形式チェック。
+- customer: name, name_kana, zip, prefecture, city, address1, phone が必須
+
+#### 送信データ:
+orderData に orderer を追加:
+```javascript
+var orderData = {
+  items: cart.items,
+  product_amount_after_discount: this.totals.subtotal,
+  shipping_fee: this.totals.shippingFee,
+  fee_amount: this.feeAmount,
+  payment_method: this.paymentMethod,
+  orderer: this.orderer,
+  customer: this.customer,
+  delivery: { date: this.delivery.date, time_slot: this.delivery.time_slot || '指定なし' }
+};
+```
+
+### 2. docs/js/validation.js
+
+orderer のバリデーション関数を追加:
+- validateOrdererForm(orderer): name, name_kana, phone, email の必須チェック + 形式チェック
+- 既存の validateCustomerForm は customer（お届け先）用に維持。email チェックは不要に変更（お届け先にemailフィールドがないため）
+
+### 3. gas/Code.gs
+
+#### ordersシートに注文者カラムを追加:
+setupSheets の orders ヘッダーに以下を追加（customer_email の後に）:
+- orderer_name
+- orderer_name_kana
+- orderer_phone
+- orderer_email
+
+#### handleOrderCreate の変更:
+body.orderer からデータを取得して、新カラムに書き込む。
+既存の customer フィールド（お届け先）はそのまま維持。
+
+#### orderRowToApiFormat の変更:
+orderer フィールドをネスト構造で返す:
+```javascript
+if (row.orderer_name) {
+  order.orderer = {
+    name: row.orderer_name || '',
+    name_kana: row.orderer_name_kana || '',
+    phone: row.orderer_phone || '',
+    email: row.orderer_email || ''
+  };
+}
+```
+
+### 4. gas/SukenekoCsv.gs
+
+助ネコCSVのマッピング変更:
+- 注文者名（姓/名）→ orderer.name を分割
+- 注文者名（セイ/メイ）→ orderer.name_kana を分割
+- 注文者メールアドレス → orderer.email
+- 注文者電話番号 → orderer.phone
+- 注文者郵便番号/住所 → 空欄（注文者住所はフォームにないため）
+  ※ただし助ネコでは注文者郵便番号が必須なので、お届け先の郵便番号で代用する
+  注文者住所（都道府県/市区町村/市区町村以降）も同様にお届け先の値で代用
+- お届け先名（姓/名）→ customer.name を分割
+- お届け先名（セイ/メイ）→ customer.name_kana を分割
+- お届け先郵便番号/住所 → customer の各フィールド
+- お届け先電話番号 → customer.phone
+
+### 5. docs/ordertool/detail.html
+
+注文詳細画面に「注文者情報」セクションを追加:
+- order.orderer が存在する場合に表示
+- 氏名、フリガナ、電話番号、メールアドレス
+
+## 作業手順
+
+1. 上記の変更を全て実施
+2. clasp push
+3. git add -A && git commit -m "注文者情報セクション追加（ギフト対応）" && git push
+4. 完了報告
