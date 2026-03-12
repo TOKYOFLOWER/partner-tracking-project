@@ -170,8 +170,8 @@
               <span class="text-xs text-gray-400 ml-2">手数料 ¥330</span>
             </div>
           </label>
-          <label class="flex items-center gap-3 border border-gray-200 rounded-lg px-4 py-3 cursor-pointer hover:bg-gray-50 transition" :class="paymentMethod === 'bank' && 'border-primary-400 bg-primary-50'">
-            <input type="radio" name="payment" value="bank" x-model="paymentMethod" class="accent-primary-600">
+          <label class="flex items-center gap-3 border border-gray-200 rounded-lg px-4 py-3 cursor-pointer hover:bg-gray-50 transition" :class="paymentMethod === 'bank_transfer' && 'border-primary-400 bg-primary-50'">
+            <input type="radio" name="payment" value="bank_transfer" x-model="paymentMethod" class="accent-primary-600">
             <div>
               <span class="text-sm font-medium">銀行振込（前払い）</span>
             </div>

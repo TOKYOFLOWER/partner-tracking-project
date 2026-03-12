@@ -4,6 +4,9 @@
  *
  * 使い方: <script src="/snippet/partner-tracking.js"></script>
  * または外部URL: <script src="https://your-server/snippet/partner-tracking.js"></script>
+ *
+ * GASバックエンドの場合:
+ *   window.PARTNER_TRACKING_API = "https://script.google.com/macros/s/xxxxx/exec";
  */
 (function () {
   var COOKIE_DAYS = 30;
@@ -31,9 +34,10 @@
   // 形式チェック
   if (!/^ptn\d{4,}$/.test(partnerId)) return;
 
-  // サーバーに有効性を問い合わせ
+  // サーバーに有効性を問い合わせ（GAS形式: ?action=partner_validate&id=xxx）
+  var url = API_BASE + "?action=partner_validate&id=" + encodeURIComponent(partnerId);
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", API_BASE + "/api/partner/validate?id=" + encodeURIComponent(partnerId), true);
+  xhr.open("GET", url, true);
   xhr.onload = function () {
     if (xhr.status === 200) {
       try {

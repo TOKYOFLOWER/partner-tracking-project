@@ -7,15 +7,18 @@ function getSpreadsheet() {
 }
 
 function nowJST() {
-  return new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
+  return new Date();  // GASのタイムゾーンはappsscript.jsonでAsia/Tokyoに設定済み
+}
+
+function nowJSTString() {
+  return Utilities.formatDate(new Date(), 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ss'+09:00'");
 }
 
 function formatJST(date) {
   if (!date) return null;
   var d = (date instanceof Date) ? date : new Date(date);
   if (isNaN(d.getTime())) return null;
-  var jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
-  return jst.toISOString().replace('Z', '+09:00');
+  return Utilities.formatDate(d, 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ss'+09:00'");
 }
 
 function jsonResponse(obj) {
@@ -48,8 +51,8 @@ function sheetToArray(sheetName) {
 function orderRowToApiFormat(row) {
   return {
     order_id: row.order_id || '',
-    ordered_at: row.ordered_at ? new Date(row.ordered_at).toISOString() : null,
-    items: row.items ? JSON.parse(row.items) : [],
+    ordered_at: formatJST(row.ordered_at),
+    items: row.items ? (typeof row.items === 'string' ? JSON.parse(row.items) : row.items) : [],
     item_names: row.item_names || '',
     item_qty: row.item_qty || 0,
     product_amount_after_discount: Number(row.product_amount_after_discount) || 0,
@@ -57,25 +60,25 @@ function orderRowToApiFormat(row) {
     fee_amount: Number(row.fee_amount) || 0,
     payment_method: row.payment_method || null,
     customer: {
-      name: row.customer_name || '',
-      name_kana: row.customer_name_kana || '',
-      zip: row.customer_zip || '',
-      prefecture: row.customer_prefecture || '',
-      city: row.customer_city || '',
-      address1: row.customer_address1 || '',
-      address2: row.customer_address2 || '',
-      phone: row.customer_phone || '',
-      email: row.customer_email || ''
+      name: String(row.customer_name || ''),
+      name_kana: String(row.customer_name_kana || ''),
+      zip: String(row.customer_zip || ''),
+      prefecture: String(row.customer_prefecture || ''),
+      city: String(row.customer_city || ''),
+      address1: String(row.customer_address1 || ''),
+      address2: String(row.customer_address2 || ''),
+      phone: String(row.customer_phone || ''),
+      email: String(row.customer_email || '')
     },
     delivery: {
       date: row.delivery_date || null,
       time_slot: row.delivery_time_slot || null
     },
     partner_id: row.partner_id || null,
-    partner_tracked_at: row.partner_tracked_at ? new Date(row.partner_tracked_at).toISOString() : null,
+    partner_tracked_at: formatJST(row.partner_tracked_at),
     achievement_status: row.achievement_status || 'pending',
     tracking_number: row.tracking_number || null,
-    shipped_at: row.shipped_at ? new Date(row.shipped_at).toISOString() : null
+    shipped_at: formatJST(row.shipped_at)
   };
 }
 
@@ -151,7 +154,10 @@ function doPost(e) {
 
 function handleProductList() {
   var products = sheetToArray('products');
-  var inStock = products.filter(function(p) { return p.in_stock === true || p.in_stock === 'TRUE' || p.in_stock === 1; });
+  var inStock = products.filter(function(p) {
+    var v = p.in_stock;
+    return v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1';
+  });
   inStock.sort(function(a, b) { return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0); });
   return jsonResponse(inStock);
 }
@@ -236,10 +242,8 @@ function handleOrderCreate(body) {
   }
 
   // ORD-YYYYMMDD-NNN 自動採番 (JST)
-  var now = nowJST();
-  var dateStr = now.getFullYear().toString() +
-    String(now.getMonth() + 1).padStart(2, '0') +
-    String(now.getDate()).padStart(2, '0');
+  var now = new Date();
+  var dateStr = Utilities.formatDate(now, 'Asia/Tokyo', 'yyyyMMdd');
   var prefix = 'ORD-' + dateStr + '-';
 
   var ss = getSpreadsheet();
@@ -258,7 +262,7 @@ function handleOrderCreate(body) {
   var newRow = headers.map(function(h) {
     switch (h) {
       case 'order_id': return orderId;
-      case 'ordered_at': return now;
+      case 'ordered_at': return nowJSTString();
       case 'items': return JSON.stringify(items || []);
       case 'item_names': return itemNames.join(', ');
       case 'item_qty': return itemQty;
@@ -368,7 +372,7 @@ function handleOrderShip(body) {
     if (data[i][idCol] === orderId) {
       sheet.getRange(i + 1, statusCol + 1).setValue('confirmed');
       sheet.getRange(i + 1, trackCol + 1).setValue(trackingNumber);
-      sheet.getRange(i + 1, shippedCol + 1).setValue(nowJST());
+      sheet.getRange(i + 1, shippedCol + 1).setValue(nowJSTString());
       var orders = loadOrdersForApi();
       var order = orders.find(function(o) { return o.order_id === orderId; });
       return jsonResponse(order);
