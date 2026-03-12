@@ -48,6 +48,18 @@
     <div x-show="!completed">
       <h1 class="text-xl font-bold mb-6">販売パートナー登録申請</h1>
 
+      <!-- Errors (top) -->
+      <div x-show="errors.length > 0" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+        <template x-for="err in errors" :key="err">
+          <p class="text-red-600 text-sm" x-text="err"></p>
+        </template>
+      </div>
+
+      <!-- Server Error (top) -->
+      <div x-show="serverError" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+        <p class="text-red-600 text-sm" x-text="serverError"></p>
+      </div>
+
       <!-- Section 1: Basic Info -->
       <section class="mb-8">
         <h2 class="text-base font-bold mb-3 text-gray-700">基本情報</h2>
@@ -55,11 +67,16 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-sm text-gray-600 mb-1">お名前 <span class="text-red-400">*</span></label>
-              <input type="text" x-model="form.name" placeholder="山田 太郎" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+              <input type="text" x-model="form.name"
+                @compositionupdate="onNameComposition($event)"
+                @compositionend="onNameCompositionEnd($event)"
+                placeholder="山田 太郎" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">フリガナ <span class="text-red-400">*</span></label>
-              <input type="text" x-model="form.name_kana" placeholder="ヤマダ タロウ" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+              <input type="text" x-model="form.name_kana"
+                @input="if (!$event.isComposing) kanaAutoFill = false"
+                placeholder="ヤマダ タロウ" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
             </div>
           </div>
           <div>
@@ -76,7 +93,7 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-sm text-gray-600 mb-1">郵便番号 <span class="text-red-400">*</span></label>
-              <input type="text" x-model="form.zip" placeholder="150-0001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+              <input type="text" x-model="form.zip" @input="lookupZip()" placeholder="150-0001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">都道府県 <span class="text-red-400">*</span></label>
@@ -118,13 +135,18 @@
         <h2 class="text-base font-bold mb-3 text-gray-700">口座情報（成果報酬振込先）</h2>
         <div class="space-y-3">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+            <div class="relative">
               <label class="block text-sm text-gray-600 mb-1">銀行名 <span class="text-red-400">*</span></label>
-              <input type="text" x-model="form.bank_name" placeholder="○○銀行" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+              <input type="text" x-model="form.bank_name" @input="filterBanks()" @focus="showBankSuggest = true" @blur="setTimeout(() => showBankSuggest = false, 200)" placeholder="例: みずほ銀行" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+              <div x-show="showBankSuggest && filteredBanks.length > 0" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                <template x-for="bank in filteredBanks" :key="bank">
+                  <div @mousedown="form.bank_name = bank; showBankSuggest = false" class="px-3 py-2 text-sm cursor-pointer hover:bg-primary-50" x-text="bank"></div>
+                </template>
+              </div>
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">支店名 <span class="text-red-400">*</span></label>
-              <input type="text" x-model="form.bank_branch" placeholder="○○支店" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
+              <input type="text" x-model="form.bank_branch" placeholder="例: 銀座通支店" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
             </div>
           </div>
           <div>
@@ -161,18 +183,6 @@
         </label>
       </section>
 
-      <!-- Errors -->
-      <div x-show="errors.length > 0" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-        <template x-for="err in errors" :key="err">
-          <p class="text-red-600 text-sm" x-text="err"></p>
-        </template>
-      </div>
-
-      <!-- Server Error -->
-      <div x-show="serverError" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-        <p class="text-red-600 text-sm" x-text="serverError"></p>
-      </div>
-
       <!-- Submit -->
       <button @click="submit()"
         :disabled="submitting"
@@ -196,6 +206,12 @@
   <script src="js/config.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
   <script>
+    function hiraganaToKatakana(str) {
+      return str.replace(/[\u3041-\u3096]/g, function(ch) {
+        return String.fromCharCode(ch.charCodeAt(0) + 96);
+      });
+    }
+
     function partnerRegister() {
       return {
         form: {
@@ -211,6 +227,23 @@
         submitting: false,
         completed: false,
         resultId: '',
+        kanaAutoFill: true,
+        kanaBuffer: '',
+        showBankSuggest: false,
+        filteredBanks: [],
+        majorBanks: [
+          'みずほ銀行','三菱UFJ銀行','三井住友銀行','りそな銀行','埼玉りそな銀行',
+          'PayPay銀行','セブン銀行','ソニー銀行','楽天銀行','住信SBIネット銀行',
+          'auじぶん銀行','イオン銀行','GMOあおぞらネット銀行',
+          '横浜銀行','千葉銀行','静岡銀行','福岡銀行','北海道銀行','広島銀行',
+          '京都銀行','関西みらい銀行','池田泉州銀行','南都銀行','紀陽銀行',
+          '滋賀銀行','百五銀行','十六銀行','スルガ銀行','八十二銀行',
+          '群馬銀行','足利銀行','常陽銀行','武蔵野銀行','千葉興業銀行',
+          '東邦銀行','七十七銀行','秋田銀行','山形銀行','岩手銀行','青森銀行',
+          '北陸銀行','北國銀行','山陰合同銀行','中国銀行','四国銀行','伊予銀行',
+          '肥後銀行','鹿児島銀行','琉球銀行','沖縄銀行',
+          'ゆうちょ銀行','農林中央金庫'
+        ],
         prefectures: [
           '北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県',
           '茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県',
@@ -222,6 +255,51 @@
           '福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'
         ],
         init() {},
+
+        // フリガナ自動入力
+        onNameComposition(e) {
+          if (this.kanaAutoFill && e.data) {
+            this.form.name_kana = this.kanaBuffer + hiraganaToKatakana(e.data);
+          }
+        },
+        onNameCompositionEnd(e) {
+          if (this.kanaAutoFill && e.data) {
+            this.kanaBuffer += hiraganaToKatakana(e.data);
+            // 確定後スペースを追加（次の文字との区切り）
+            if (this.kanaBuffer && !this.kanaBuffer.endsWith(' ') && !this.kanaBuffer.endsWith('　')) {
+              this.kanaBuffer += '　';
+            }
+            this.form.name_kana = this.kanaBuffer.trimEnd();
+          }
+        },
+
+        // 郵便番号から住所自動入力
+        async lookupZip() {
+          var cleanZip = this.form.zip.replace(/-/g, '');
+          if (cleanZip.length !== 7) return;
+          try {
+            var res = await fetch('https://zipcloud.ibsnet.co.jp/api/search?zipcode=' + cleanZip);
+            var data = await res.json();
+            if (data.results && data.results.length > 0) {
+              var r = data.results[0];
+              this.form.prefecture = r.address1;
+              this.form.city = r.address2 + r.address3;
+            }
+          } catch (e) {
+            // エラーは無視（手動入力にフォールバック）
+          }
+        },
+
+        // 銀行名サジェスト
+        filterBanks() {
+          var q = this.form.bank_name;
+          if (!q) {
+            this.filteredBanks = this.majorBanks.slice(0, 10);
+            return;
+          }
+          this.filteredBanks = this.majorBanks.filter(function(b) { return b.indexOf(q) >= 0; }).slice(0, 10);
+        },
+
         validate() {
           var errs = [];
           if (!this.form.name.trim()) errs.push('お名前を入力してください');

@@ -1,0 +1,143 @@
+docs/partner-register.html のUX改善を行う。
+
+## 1. エラー表示位置の修正
+
+現在: エラーがページ下部（送信ボタンの上）に表示され、ページTOPにスクロールしてしまう
+修正: エラー表示をページ上部（h1の直下）に移動する。スクロールもエラー表示位置に合わせる。
+window.scrollTo({ top: 0, behavior: 'smooth' }) はそのままでOK（エラーがTOPにあるので）。
+
+## 2. フリガナ自動入力
+
+名前入力時にフリガナを自動補完する。
+ライブラリ: https://cdnjs.cloudflare.com/ajax/libs/wanakana/5.3.1/wanakana.min.js は漢字→カナ変換ができないので不可。
+
+代替案: IME入力中の読みを取得する方法を使う。
+compositionstart/compositionupdate/compositionend イベントで IME の入力中テキスト（ひらがな）を取得し、カタカナに変換してフリガナ欄にセットする。
+
+実装:
+- name フィールドに compositionupdate イベントを設定
+- IME入力中のテキスト（e.data）を取得
+- ひらがな→カタカナ変換（charCode +96）
+- フリガナ欄が空、またはIMEによる自動入力中の場合のみセット
+- ユーザーが手動でフリガナを編集した場合は上書きしない（フラグ管理）
+
+```javascript
+// ひらがな→カタカナ変換
+function hiraganaToKatakana(str) {
+  return str.replace(/[\u3041-\u3096]/g, function(ch) {
+    return String.fromCharCode(ch.charCodeAt(0) + 96);
+  });
+}
+```
+
+name フィールドの HTML に以下を追加:
+@compositionupdate="onNameComposition($event)"
+@compositionend="onNameCompositionEnd($event)"
+
+Alpine.js のデータに追加:
+kanaAutoFill: true,  // フリガナ自動入力が有効か
+
+メソッド:
+onNameComposition(e) {
+  if (this.kanaAutoFill && e.data) {
+    this.form.name_kana = hiraganaToKatakana(e.data);
+  }
+},
+onNameCompositionEnd(e) {
+  // 確定時にスペース区切りで蓄積
+  // フリガナに反映済みの内容に追加
+}
+
+※完璧な変換は難しいので、あくまで補助。ユーザーが修正可能にする。
+※フリガナ欄を手動編集したら kanaAutoFill = false にして自動入力を止める。
+フリガナ欄に @focus="kanaAutoFill = false" は付けない（フォーカスしただけで止まるのはUX悪い）。
+代わに @input でユーザーのキー入力を検知したら止める:
+@input="if (!$event.isComposing) kanaAutoFill = false"
+
+## 3. 郵便番号から住所自動入力
+
+無料API: https://zipcloud.ibsnet.co.jp/api/search を使用。
+CDNライブラリ不要、fetch で直接呼び出す。JSONP不要（CORSヘッダーあり）。
+
+郵便番号フィールドの入力が7桁（ハイフンなし）または8文字（ハイフンあり）になったら自動検索:
+
+```javascript
+async function lookupZip(zip) {
+  var cleanZip = zip.replace(/-/g, '');
+  if (cleanZip.length !== 7) return;
+  try {
+    var res = await fetch('https://zipcloud.ibsnet.co.jp/api/search?zipcode=' + cleanZip);
+    var data = await res.json();
+    if (data.results && data.results.length > 0) {
+      var r = data.results[0];
+      // Alpine.js のデータを更新
+      this.form.prefecture = r.address1;  // 都道府県
+      this.form.city = r.address2 + r.address3;  // 市区町村+町域
+    }
+  } catch (e) {
+    // エラーは無視（手動入力にフォールバック）
+  }
+}
+```
+
+郵便番号フィールドに @input="lookupZip(form.zip)" を追加。
+
+## 4. 銀行名・支店名のサジェスト入力
+
+完全なドロップダウンは銀行数が多すぎるため（1000+）、サジェスト（入力補完）方式にする。
+
+銀行データAPI: https://bank.teraren.com/banks.json?name=みずほ のような無料APIは不安定なので、
+主要銀行リストをJSに埋め込み + 自由入力を併用する方式にする。
+
+実装:
+- 銀行名フィールドをテキスト入力のまま、入力中にサジェストリストを表示
+- 主要銀行50行程度をJS配列に埋め込み:
+  ['みずほ銀行','三菱UFJ銀行','三井住友銀行','りそな銀行','埼玉りそな銀行',
+   'PayPay銀行','セブン銀行','ソニー銀行','楽天銀行','住信SBIネット銀行',
+   'auじぶん銀行','イオン銀行','GMOあおぞらネット銀行',
+   '横浜銀行','千葉銀行','静岡銀行','福岡銀行','北海道銀行','広島銀行',
+   '京都銀行','関西みらい銀行','池田泉州銀行','南都銀行','紀陽銀行',
+   '滋賀銀行','百五銀行','十六銀行','スルガ銀行','八十二銀行',
+   '群馬銀行','足利銀行','常陽銀行','武蔵野銀行','千葉興業銀行',
+   '東邦銀行','七十七銀行','秋田銀行','山形銀行','岩手銀行','青森銀行',
+   '北陸銀行','北國銀行','山陰合同銀行','中国銀行','四国銀行','伊予銀行',
+   '肥後銀行','鹿児島銀行','琉球銀行','沖縄銀行',
+   'ゆうちょ銀行','農林中央金庫']
+- 入力テキストで部分一致フィルター
+- サジェストリストは absolute で表示、クリックで選択
+- リストにない銀行も自由に入力可能
+
+支店名:
+- 支店データは膨大すぎるので埋め込まない
+- テキスト自由入力のまま（サジェストなし）
+- プレースホルダーに「例: 銀座通支店」と表示
+
+UIコンポーネント:
+```html
+<div class="relative">
+  <input type="text" x-model="form.bank_name" @input="filterBanks()" @focus="showBankSuggest = true" @blur="setTimeout(() => showBankSuggest = false, 200)" placeholder="例: みずほ銀行" ...>
+  <div x-show="showBankSuggest && filteredBanks.length > 0" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+    <template x-for="bank in filteredBanks" :key="bank">
+      <div @mousedown="form.bank_name = bank; showBankSuggest = false" class="px-3 py-2 text-sm cursor-pointer hover:bg-primary-50" x-text="bank"></div>
+    </template>
+  </div>
+</div>
+```
+
+Alpine.js データに追加:
+showBankSuggest: false,
+filteredBanks: [],
+majorBanks: [上記の配列],
+
+メソッド:
+filterBanks() {
+  var q = this.form.bank_name;
+  if (!q) { this.filteredBanks = this.majorBanks.slice(0, 10); return; }
+  this.filteredBanks = this.majorBanks.filter(b => b.indexOf(q) >= 0).slice(0, 10);
+}
+
+## 作業手順
+
+1. 上記4点の変更を docs/partner-register.html に実施
+2. git add -A && git commit -m "パートナー登録フォームUX改善" && git push
+3. 完了報告
