@@ -1,68 +1,24 @@
 [
   {
-    "product_id": "prod001",
-    "name": "季節のアレンジメント S",
-    "description": "季節の花を使ったおまかせアレンジメント。コンパクトで飾りやすいサイズ。",
-    "price": 3300,
+    "product_id": "carnation-10",
+    "name": "母の日 大きなカーネーション 尺鉢 10号",
+    "description": "見たことのないような大きなサイズのカーネーション。赤・ピンクから選べる花色。鉢径約30cm、ラッピング無料。銀座からお届けするボリューム満点の母の日ギフトです。",
+    "price": 9900,
     "tax_included": true,
-    "image": "images/arrangement-s.jpg",
-    "category": "arrangement",
+    "image": "images/carnation-10.svg",
+    "category": "mothers_day",
     "in_stock": true,
     "sort_order": 1
   },
   {
-    "product_id": "prod002",
-    "name": "季節のアレンジメント M",
-    "description": "ボリュームのある華やかなアレンジメント。贈り物に最適。",
-    "price": 5500,
-    "tax_included": true,
-    "image": "images/arrangement-m.jpg",
-    "category": "arrangement",
-    "in_stock": true,
-    "sort_order": 2
-  },
-  {
-    "product_id": "prod003",
-    "name": "季節のアレンジメント L",
-    "description": "特別な日に。豪華なアレンジメント。",
-    "price": 8800,
-    "tax_included": true,
-    "image": "images/arrangement-l.jpg",
-    "category": "arrangement",
-    "in_stock": true,
-    "sort_order": 3
-  },
-  {
-    "product_id": "prod004",
-    "name": "おまかせ花束",
-    "description": "季節の花でお作りする花束。ラッピング込み。",
+    "product_id": "ajisai-5",
+    "name": "母の日 選べるあじさい 5号鉢",
+    "description": "かわいいピンク系のあじさい。花火凜花・コットンキャンディ・ダンスパーティーなど豊富な品種から銀座のスタッフがお届け。鉢植えなので長く楽しめます。ラッピング無料、育て方ガイド付き。",
     "price": 4400,
     "tax_included": true,
-    "image": "images/bouquet.jpg",
-    "category": "bouquet",
+    "image": "images/ajisai-5.svg",
+    "category": "mothers_day",
     "in_stock": true,
-    "sort_order": 4
-  },
-  {
-    "product_id": "prod005",
-    "name": "観葉植物 ポトス",
-    "description": "育てやすい定番の観葉植物。4号鉢。",
-    "price": 1650,
-    "tax_included": true,
-    "image": "images/pothos.jpg",
-    "category": "plant",
-    "in_stock": true,
-    "sort_order": 5
-  },
-  {
-    "product_id": "prod006",
-    "name": "多肉植物 寄せ植え",
-    "description": "おしゃれな器の多肉植物セット。手間いらず。",
-    "price": 2750,
-    "tax_included": true,
-    "image": "images/succulent.jpg",
-    "category": "plant",
-    "in_stock": false,
-    "sort_order": 6
+    "sort_order": 2
   }
 ]

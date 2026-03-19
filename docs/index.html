@@ -70,19 +70,23 @@
       <template x-for="p in filteredProducts" :key="p.product_id">
         <div class="border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition bg-white flex flex-col">
           <!-- Image -->
-          <div class="aspect-[4/3] relative bg-primary-50 overflow-hidden">
-            <img :src="p.image" :alt="p.name"
-              class="w-full h-full object-cover"
-              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-            <div class="img-placeholder absolute inset-0" style="display:none;">&#x1F33F;</div>
-            <div x-show="!p.in_stock"
-              class="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <span class="bg-white text-gray-700 font-bold text-sm px-4 py-1.5 rounded">SOLD OUT</span>
+          <a :href="'product.html?id=' + p.product_id" class="block">
+            <div class="aspect-[4/3] relative bg-primary-50 overflow-hidden">
+              <img :src="p.image" :alt="p.name"
+                class="w-full h-full object-cover"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+              <div class="img-placeholder absolute inset-0" style="display:none;">&#x1F33F;</div>
+              <div x-show="!p.in_stock"
+                class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <span class="bg-white text-gray-700 font-bold text-sm px-4 py-1.5 rounded">SOLD OUT</span>
+              </div>
             </div>
-          </div>
+          </a>
           <!-- Info -->
           <div class="p-4 flex flex-col flex-1">
-            <h3 class="font-bold text-base mb-1" x-text="p.name"></h3>
+            <a :href="'product.html?id=' + p.product_id" class="hover:text-primary-600 transition">
+              <h3 class="font-bold text-base mb-1" x-text="p.name"></h3>
+            </a>
             <p class="text-gray-500 text-sm truncate mb-3" x-text="p.description"></p>
             <div class="mt-auto flex items-center justify-between">
               <span class="text-lg font-bold text-primary-700" x-text="'¥' + p.price.toLocaleString()"></span>
@@ -126,6 +130,7 @@
         toastMessage: '',
         categories: [
           { value: 'all', label: 'すべて' },
+          { value: 'mothers_day', label: '母の日ギフト' },
           { value: 'arrangement', label: 'アレンジメント' },
           { value: 'bouquet', label: '花束' },
           { value: 'plant', label: '観葉植物' }
