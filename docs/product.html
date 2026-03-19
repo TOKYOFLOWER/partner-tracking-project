@@ -69,8 +69,12 @@
              @mousedown.prevent="mouseStartX = $event.clientX; mouseDown = true"
              @mouseup="handleMouseSwipe($event)"
              @mouseleave="mouseDown = false">
+          <!-- Loading -->
+          <div x-show="gLoading" class="absolute inset-0 flex items-center justify-center bg-gray-50 z-5">
+            <div class="text-gray-300 text-sm">画像読み込み中...</div>
+          </div>
           <!-- Slide track -->
-          <div class="gallery-track h-full"
+          <div x-show="!gLoading" class="gallery-track h-full"
                :style="'transform: translateX(-' + (gCurrent * 100) + '%)'">
             <template x-for="(img, i) in gImages" :key="i">
               <img :src="img" :alt="product.name + ' 画像' + (i+1)"
@@ -204,7 +208,7 @@
       return {
         product: null, loading: true, error: null, toast: false, toastMessage: '',
         // Gallery state
-        gCurrent: 0, gTotal: 0, gImages: [],
+        gCurrent: 0, gTotal: 0, gImages: [], gLoading: true,
         touchStartX: 0, mouseStartX: 0, mouseDown: false,
 
         async init() {
@@ -223,16 +227,59 @@
         },
 
         initGallery() {
-          var count = Number(this.product.image_count) || 0;
-          if (count > 0) {
-            this.gTotal = count;
-            for (var i = 1; i <= count; i++) {
-              this.gImages.push('images/' + this.product.product_id + '/' + String(i).padStart(2, '0') + '.jpg');
+          var self = this;
+          var pid = this.product.product_id;
+          var maxImages = 20;
+
+          var loaded = [];
+
+          function checkNext(index) {
+            if (index > maxImages) {
+              finalize();
+              return;
             }
-          } else if (this.product.image) {
-            this.gImages = [this.product.image];
-            this.gTotal = 1;
+            var num = String(index).padStart(2, '0');
+            var basePath = 'images/' + pid + '/' + num;
+
+            var img = new Image();
+            img.onload = function() {
+              loaded.push(basePath + '.jpg');
+              checkNext(index + 1);
+            };
+            img.onerror = function() {
+              var img2 = new Image();
+              img2.onload = function() {
+                loaded.push(basePath + '.svg');
+                checkNext(index + 1);
+              };
+              img2.onerror = function() {
+                var img3 = new Image();
+                img3.onload = function() {
+                  loaded.push(basePath + '.png');
+                  checkNext(index + 1);
+                };
+                img3.onerror = function() {
+                  finalize();
+                };
+                img3.src = basePath + '.png';
+              };
+              img2.src = basePath + '.svg';
+            };
+            img.src = basePath + '.jpg';
           }
+
+          function finalize() {
+            if (loaded.length > 0) {
+              self.gImages = loaded;
+              self.gTotal = loaded.length;
+            } else if (self.product.image) {
+              self.gImages = [self.product.image];
+              self.gTotal = 1;
+            }
+            self.gLoading = false;
+          }
+
+          checkNext(1);
         },
 
         gNext() { if (this.gCurrent < this.gTotal - 1) this.gCurrent++; },
