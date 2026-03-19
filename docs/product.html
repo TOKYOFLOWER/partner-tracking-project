@@ -83,7 +83,7 @@
             </template>
           </div>
           <!-- SOLD OUT -->
-          <div x-show="!isInStock()" class="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+          <div x-show="!isVariantInStock()" class="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
             <span class="bg-white text-gray-700 font-bold text-lg px-6 py-2 rounded">SOLD OUT</span>
           </div>
         </div>
@@ -115,19 +115,45 @@
         <h1 class="text-2xl font-bold mb-3" x-text="product.name"></h1>
 
         <p class="text-xl font-bold text-primary-700 mb-4">
-          <span x-text="'¥' + Number(product.price).toLocaleString()"></span>
+          <span x-text="'¥' + displayPrice().toLocaleString()"></span>
           <span class="text-sm font-normal text-gray-400">（税込）</span>
         </p>
 
         <p class="text-gray-600 whitespace-pre-line mb-6 leading-relaxed" x-text="product.description"></p>
 
+        <!-- Variant Selection -->
+        <div x-show="variants && variants.options && variants.options.length > 0" class="mb-6 space-y-5">
+          <template x-for="(opt, optIdx) in (variants ? variants.options : [])" :key="opt.name">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-bold text-gray-700" x-text="opt.name"></span>
+                <span class="text-sm text-primary-700 font-medium" x-text="selectedOptions[opt.name] || '未選択'"></span>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <template x-for="val in opt.values" :key="val">
+                  <button @click="selectedOptions[opt.name] = val; updateVariant()"
+                    :class="selectedOptions[opt.name] === val
+                      ? 'border-primary-600 bg-primary-50 text-primary-700 ring-1 ring-primary-600'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'"
+                    class="px-4 py-2.5 border rounded-lg text-sm font-medium transition cursor-pointer min-w-[80px] text-center"
+                    x-text="val"></button>
+                </template>
+              </div>
+            </div>
+          </template>
+          <div x-show="currentVariant && !currentVariant.in_stock"
+            class="p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600">
+            この組み合わせは現在売り切れです
+          </div>
+        </div>
+
         <!-- Add to Cart (desktop) -->
         <div class="mb-8 hidden sm:block">
-          <button x-show="isInStock()" @click="addToCart()"
+          <button x-show="isVariantInStock()" @click="addToCart()"
             class="w-full sm:w-auto bg-primary-600 hover:bg-primary-700 text-white font-medium px-8 py-3 rounded-lg transition active:scale-95 text-base">
             カートに入れる
           </button>
-          <div x-show="!isInStock()" class="text-gray-400 font-bold text-center py-3">現在売り切れです</div>
+          <div x-show="!isVariantInStock()" class="text-gray-400 font-bold text-center py-3">現在売り切れです</div>
         </div>
 
         <!-- Additional Info -->
@@ -207,6 +233,8 @@
     function productPage() {
       return {
         product: null, loading: true, error: null, toast: false, toastMessage: '',
+        // Variants
+        variants: null, selectedOptions: {}, currentVariant: null, variantPrice: null,
         // Gallery state
         gCurrent: 0, gTotal: 0, gImages: [], gLoading: true,
         touchStartX: 0, mouseStartX: 0, mouseDown: false,
@@ -220,7 +248,18 @@
             this.product = await API.fetchProduct(id);
             document.title = this.product.name + ' - 花のアトリエ';
             this.initGallery();
-            window.dispatchEvent(new CustomEvent('product-loaded', { detail: { inStock: this.isInStock() } }));
+            // バリエーション読み込み
+            try {
+              this.variants = await API.fetchVariants(this.product.product_id);
+              if (this.variants.options && this.variants.options.length > 0) {
+                var self = this;
+                this.variants.options.forEach(function(opt) {
+                  self.selectedOptions[opt.name] = opt.values[0];
+                });
+                this.updateVariant();
+              }
+            } catch (e) { /* バリエーションなしの商品は無視 */ }
+            window.dispatchEvent(new CustomEvent('product-loaded', { detail: { inStock: this.isVariantInStock() } }));
           } catch (e) { this.error = e.message; }
           finally { this.loading = false; }
           document.addEventListener('do-add-to-cart', () => { this.addToCart(); });
@@ -267,8 +306,44 @@
           var v = this.product.in_stock;
           return v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1';
         },
+
+        updateVariant() {
+          if (!this.variants || !this.variants.combinations) return;
+          var self = this;
+          this.currentVariant = this.variants.combinations.find(function(c) {
+            return Object.keys(self.selectedOptions).every(function(key) {
+              return c.selections[key] === self.selectedOptions[key];
+            });
+          }) || null;
+          if (this.currentVariant && this.currentVariant.price !== null) {
+            this.variantPrice = this.currentVariant.price;
+          } else {
+            this.variantPrice = null;
+          }
+        },
+
+        displayPrice() {
+          return this.variantPrice !== null ? this.variantPrice : Number(this.product.price);
+        },
+
+        isVariantInStock() {
+          if (!this.variants || !this.variants.options || this.variants.options.length === 0) {
+            return this.isInStock();
+          }
+          if (!this.currentVariant) return false;
+          return this.currentVariant.in_stock;
+        },
+
         addToCart() {
-          Cart.addToCart(this.product.product_id, 1);
+          var variantInfo = null;
+          if (this.currentVariant) {
+            variantInfo = {
+              sku: this.currentVariant.sku,
+              selections: Object.assign({}, this.selectedOptions),
+              price: this.displayPrice()
+            };
+          }
+          Cart.addToCart(this.product.product_id, 1, variantInfo);
           window.dispatchEvent(new CustomEvent('cart-updated'));
           this.showToast('カートに追加しました');
         },

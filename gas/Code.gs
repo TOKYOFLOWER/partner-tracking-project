@@ -129,6 +129,8 @@ function doGet(e) {
         return handleAggregate(e.parameter.month);
       case 'aggregate_monthly':
         return handleAggregateMonthly();
+      case 'variant_list':
+        return handleVariantList(e.parameter.product_id);
       default:
         return jsonResponse({ error: 'Unknown action: ' + action });
     }
@@ -189,6 +191,56 @@ function handleProductDetail(productId) {
   var p = products.find(function(x) { return x.product_id === productId; });
   if (!p) return jsonResponse({ error: 'product not found' });
   return jsonResponse(p);
+}
+
+function handleVariantList(productId) {
+  if (!productId) return jsonResponse({ error: 'product_id is required' });
+  var rows = sheetToArray('variants');
+  var filtered = rows.filter(function(r) { return r.product_id === productId; });
+  if (filtered.length === 0) return jsonResponse({ options: [], combinations: [] });
+
+  // オプション項目を抽出（最大4項目）
+  var optionNames = [];
+  for (var n = 1; n <= 4; n++) {
+    var key = 'option' + n + '_name';
+    var name = filtered[0][key];
+    if (name && String(name).trim()) {
+      optionNames.push(String(name).trim());
+    }
+  }
+
+  // 各オプションのユニーク値を取得（順序を保持）
+  var options = optionNames.map(function(name, idx) {
+    var key = 'option' + (idx + 1) + '_value';
+    var seen = {};
+    var values = [];
+    filtered.forEach(function(r) {
+      var v = String(r[key] || '').trim();
+      if (v && !seen[v]) {
+        seen[v] = true;
+        values.push(v);
+      }
+    });
+    return { name: name, values: values };
+  });
+
+  // 組み合わせ一覧
+  var combinations = filtered.map(function(r) {
+    var selections = {};
+    optionNames.forEach(function(name, idx) {
+      var key = 'option' + (idx + 1) + '_value';
+      selections[name] = String(r[key] || '').trim();
+    });
+    var price = r.price;
+    return {
+      sku: String(r.sku || ''),
+      selections: selections,
+      price: (price !== '' && price !== null && price !== undefined) ? Number(price) : null,
+      in_stock: r.in_stock === true || r.in_stock === 'TRUE' || r.in_stock === 'true' || r.in_stock === 1
+    };
+  });
+
+  return jsonResponse({ options: options, combinations: combinations });
 }
 
 // ============================================================

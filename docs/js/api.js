@@ -49,6 +49,10 @@ const API = {
     return this._get({ action: 'partner_validate', id: id });
   },
 
+  fetchVariants(productId) {
+    return this._get({ action: 'variant_list', product_id: productId });
+  },
+
   submitOrder(orderData) {
     return this._post({ action: 'order_create', ...orderData });
   }

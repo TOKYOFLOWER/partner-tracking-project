@@ -17,14 +17,21 @@ const Cart = {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
   },
 
-  addToCart(productId, qty) {
+  addToCart(productId, qty, variantInfo) {
     qty = qty || 1;
     const cart = this.getCart();
-    const existing = cart.items.find(function(item) { return item.product_id === productId; });
+    var key = variantInfo ? variantInfo.sku : productId;
+    const existing = cart.items.find(function(item) { return (item.sku || item.product_id) === key; });
     if (existing) {
       existing.qty += qty;
     } else {
-      cart.items.push({ product_id: productId, qty: qty });
+      var item = { product_id: productId, qty: qty };
+      if (variantInfo) {
+        item.sku = variantInfo.sku;
+        item.selections = variantInfo.selections;
+        item.variant_price = variantInfo.price;
+      }
+      cart.items.push(item);
     }
     this._saveCart(cart);
   },
