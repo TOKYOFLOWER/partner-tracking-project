@@ -74,9 +74,9 @@
             <span class="text-gray-500">送料</span>
             <span x-text="totals.shippingFee === 0 ? '無料' : '¥' + totals.shippingFee.toLocaleString()"></span>
           </div>
-          <div class="flex justify-between">
+          <div class="flex justify-between" x-show="feeAmount > 0">
             <span class="text-gray-500">手数料</span>
-            <span x-text="feeAmount > 0 ? '¥' + feeAmount.toLocaleString() : '¥0'"></span>
+            <span x-text="'¥' + feeAmount.toLocaleString()"></span>
           </div>
           <div class="border-t border-gray-200 pt-2 flex justify-between font-bold text-base">
             <span>合計</span>
@@ -222,17 +222,25 @@
       <section class="mb-8">
         <h2 class="text-base font-bold mb-3 text-gray-700">お支払い方法</h2>
         <div class="space-y-2">
-          <label class="flex items-center gap-3 border border-gray-200 rounded-lg px-4 py-3 cursor-pointer hover:bg-gray-50 transition" :class="paymentMethod === 'cod' && 'border-primary-400 bg-primary-50'">
-            <input type="radio" name="payment" value="cod" x-model="paymentMethod" class="accent-primary-600">
+          <label class="flex items-center gap-3 border rounded-lg p-4 cursor-pointer transition"
+            :class="paymentMethod === 'credit_card' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'">
+            <input type="radio" value="credit_card" x-model="paymentMethod" class="accent-primary-600">
             <div>
-              <span class="text-sm font-medium">代金引換</span>
-              <span class="text-xs text-gray-400 ml-2">手数料 ¥330</span>
+              <span class="font-medium">クレジットカード</span>
             </div>
           </label>
-          <label class="flex items-center gap-3 border border-gray-200 rounded-lg px-4 py-3 cursor-pointer hover:bg-gray-50 transition" :class="paymentMethod === 'bank_transfer' && 'border-primary-400 bg-primary-50'">
-            <input type="radio" name="payment" value="bank_transfer" x-model="paymentMethod" class="accent-primary-600">
+          <label class="flex items-center gap-3 border rounded-lg p-4 cursor-pointer transition"
+            :class="paymentMethod === 'bank_transfer' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'">
+            <input type="radio" value="bank_transfer" x-model="paymentMethod" class="accent-primary-600">
             <div>
-              <span class="text-sm font-medium">銀行振込（前払い）</span>
+              <span class="font-medium">銀行振込（前払い）</span>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 border rounded-lg p-4 cursor-pointer transition"
+            :class="paymentMethod === 'paypay' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'">
+            <input type="radio" value="paypay" x-model="paymentMethod" class="accent-primary-600">
+            <div>
+              <span class="font-medium">PayPay支払い</span>
             </div>
           </label>
         </div>
@@ -288,7 +296,7 @@
         customer: { name: '', name_kana: '', zip: '', prefecture: '', city: '', address1: '', address2: '', phone: '' },
         sameAsOrderer: true,
         delivery: { date: '', time_slot: '' },
-        paymentMethod: 'cod',
+        paymentMethod: 'credit_card',
         errors: [],
         serverError: '',
         submitting: false,
@@ -303,7 +311,7 @@
           '福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'
         ],
         get feeAmount() {
-          return this.paymentMethod === 'cod' ? CONFIG.COD_FEE : 0;
+          return 0;
         },
         get grandTotal() {
           return this.totals.subtotal + this.totals.shippingFee + this.feeAmount;
