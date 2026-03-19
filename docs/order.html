@@ -53,10 +53,17 @@
       <section class="mb-8">
         <h2 class="text-base font-bold mb-3 text-gray-700">注文内容</h2>
         <div class="border border-gray-100 rounded-xl p-4 space-y-2 bg-gray-50 text-sm">
-          <template x-for="item in totals.items" :key="item.product_id">
-            <div class="flex justify-between">
-              <span><span x-text="item.name"></span> <span class="text-gray-400">x<span x-text="item.qty"></span></span></span>
-              <span x-text="'¥' + item.lineTotal.toLocaleString()"></span>
+          <template x-for="item in totals.items" :key="item.sku || item.product_id">
+            <div>
+              <div class="flex justify-between">
+                <span><span x-text="item.name"></span> <span class="text-gray-400">x<span x-text="item.qty"></span></span></span>
+                <span x-text="'¥' + item.lineTotal.toLocaleString()"></span>
+              </div>
+              <div x-show="item.selections" class="text-xs text-gray-400 ml-2 mt-0.5">
+                <template x-for="(val, key) in (item.selections || {})" :key="key">
+                  <span class="mr-2" x-text="key + ': ' + val"></span>
+                </template>
+              </div>
             </div>
           </template>
           <div class="border-t border-gray-200 pt-2 flex justify-between">
@@ -349,7 +356,34 @@
           }
         },
         recalc() {
-          this.totals = Cart.calculateTotals(this.products);
+          var cartItems = Cart.getCartItems();
+          var self = this;
+          var subtotal = 0;
+          var details = [];
+          cartItems.forEach(function(ci) {
+            var product = self.products.find(function(p) { return p.product_id === ci.product_id; });
+            if (product) {
+              var price = ci.variant_price || Number(product.price) || 0;
+              var lineTotal = price * ci.qty;
+              subtotal += lineTotal;
+              var thumb = product.image || '';
+              if (product.images && String(product.images).trim()) {
+                thumb = String(product.images).split(/[\n\r]+/)[0].trim();
+              }
+              details.push({
+                product_id: ci.product_id,
+                sku: ci.sku || ci.product_id,
+                name: product.name,
+                price: price,
+                qty: ci.qty,
+                lineTotal: lineTotal,
+                image: thumb,
+                selections: ci.selections || null
+              });
+            }
+          });
+          var shippingFee = subtotal >= CONFIG.FREE_SHIPPING_THRESHOLD ? 0 : CONFIG.SHIPPING_FEE;
+          this.totals = { items: details, subtotal: subtotal, shippingFee: shippingFee, total: subtotal + shippingFee };
         },
         async submit() {
           this.errors = [];
@@ -371,10 +405,18 @@
           this.submitting = true;
 
           var partnerInfo = Partner.getPartnerInfo();
-          var cart = Cart.getCart();
+          var cartItems = Cart.getCartItems();
+          var self = this;
+          var orderItems = cartItems.map(function(ci) {
+            var item = { product_id: ci.product_id, qty: ci.qty };
+            if (ci.sku) item.sku = ci.sku;
+            if (ci.selections) item.selections = ci.selections;
+            if (ci.variant_price) item.variant_price = ci.variant_price;
+            return item;
+          });
 
           var orderData = {
-            items: cart.items,
+            items: orderItems,
             product_amount_after_discount: this.totals.subtotal,
             shipping_fee: this.totals.shippingFee,
             fee_amount: this.feeAmount,
