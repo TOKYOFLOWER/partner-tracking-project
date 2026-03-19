@@ -90,7 +90,9 @@
             </a>
             <p class="text-gray-500 text-sm truncate mb-3" x-text="p.description"></p>
             <div class="mt-auto flex items-center justify-between">
-              <span class="text-lg font-bold text-primary-700" x-text="'¥' + p.price.toLocaleString()"></span>
+              <span class="text-lg font-bold text-primary-700">
+                <span x-text="'¥' + (p._hasVariants ? p._minPrice.toLocaleString() : Number(p.price).toLocaleString())"></span><span x-show="p._hasVariants" class="text-sm font-normal">〜</span>
+              </span>
               <button
                 x-show="p.in_stock"
                 @click="addToCart(p.product_id)"
@@ -214,6 +216,21 @@
           Partner.initPartnerTracking();
           try {
             this.products = await API.fetchProducts();
+            for (var i = 0; i < this.products.length; i++) {
+              var p = this.products[i];
+              try {
+                var variants = await API.fetchVariants(p.product_id);
+                if (variants.options && variants.options.length > 0 && variants.combinations && variants.combinations.length > 0) {
+                  var basePrice = Number(p.price) || 0;
+                  var prices = variants.combinations.map(function(c) {
+                    return (c.price !== null && c.price !== undefined) ? c.price : basePrice;
+                  });
+                  p._minPrice = Math.min.apply(null, prices);
+                  p._maxPrice = Math.max.apply(null, prices);
+                  p._hasVariants = true;
+                }
+              } catch (e) {}
+            }
           } catch (e) {
             this.error = e.message;
           } finally {
