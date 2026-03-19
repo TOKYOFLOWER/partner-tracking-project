@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>パートナーマイページ - 花のアトリエ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' },
+            partner: { 50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea', 700: '#7e22ce' }
+          }
+        }
+      }
+    }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="../js/config.js"></script>
+  <style>
+    body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; }
+    [x-cloak] { display: none !important; }
+    .rank-regular { background: #f3f4f6; color: #6b7280; }
+    .rank-silver { background: #f1f5f9; color: #475569; }
+    .rank-gold { background: #fef9c3; color: #a16207; }
+    .rank-platinum { background: #f3e8ff; color: #7e22ce; }
+    .progress-bar { transition: width 0.8s ease-in-out; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-100 sticky top-0 z-30">
+    <div class="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="../index.html" class="text-lg font-bold text-primary-700 tracking-wide">花のアトリエ</a>
+        <span class="text-xs font-medium text-partner-600 bg-partner-50 px-2 py-0.5 rounded-full">パートナー</span>
+      </div>
+      <div class="flex items-center gap-3" x-data="{ name: '' }" x-init="
+        var s = localStorage.getItem('partner_session') || sessionStorage.getItem('partner_session');
+        if (s) name = JSON.parse(s).partner_name;
+      ">
+        <span class="text-sm text-gray-500" x-text="name"></span>
+        <button @click="localStorage.removeItem('partner_session'); sessionStorage.removeItem('partner_session'); location.href='login.html'"
+          class="text-xs text-gray-400 hover:text-red-500 transition">ログアウト</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 max-w-4xl mx-auto w-full px-4 py-6" x-data="partnerMypage()" x-init="init()" x-cloak>
+
+    <!-- Loading -->
+    <div x-show="loading" class="text-center py-20">
+      <div class="inline-block w-8 h-8 border-4 border-partner-200 border-t-partner-600 rounded-full animate-spin"></div>
+      <p class="text-sm text-gray-400 mt-3">読み込み中...</p>
+    </div>
+
+    <!-- Error -->
+    <div x-show="errorMsg && !loading" class="text-center py-20">
+      <p class="text-red-500 text-sm" x-text="errorMsg"></p>
+      <a href="login.html" class="inline-block mt-4 text-partner-600 hover:underline text-sm">再ログイン</a>
+    </div>
+
+    <!-- Dashboard -->
+    <div x-show="!loading && !errorMsg && data">
+
+      <!-- 1. Welcome + Rank Badge -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 class="text-lg font-bold" x-text="data.partner.partner_name + ' さん'"></h1>
+            <p class="text-sm text-gray-400 mt-0.5">ID: <span class="font-mono" x-text="data.partner.partner_id"></span></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-2xl" x-text="data.rank.emoji"></span>
+            <div>
+              <span class="inline-block px-3 py-1 rounded-full text-sm font-bold"
+                :class="rankClass(data.rank.name)" x-text="data.rank.name + 'ランク'"></span>
+              <p class="text-xs text-gray-400 mt-0.5">報酬率 <span class="font-bold text-partner-600" x-text="data.rank.rate_percent + '%'"></span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. This Month Stats (4 cards) -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center">
+          <p class="text-xs text-gray-400 mb-1">確定件数</p>
+          <p class="text-2xl font-bold text-gray-800" x-text="data.this_month.confirmed_count"></p>
+          <p class="text-xs text-gray-400">件</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center">
+          <p class="text-xs text-gray-400 mb-1">確定売上</p>
+          <p class="text-2xl font-bold text-gray-800" x-text="fmt(data.this_month.confirmed_sales)"></p>
+          <p class="text-xs text-gray-400">円</p>
+        </div>
+        <div class="bg-partner-50 rounded-xl shadow-sm border border-partner-100 p-4 text-center">
+          <p class="text-xs text-partner-500 mb-1">報酬見込み</p>
+          <p class="text-2xl font-bold text-partner-700" x-text="fmt(data.this_month.estimated_commission)"></p>
+          <p class="text-xs text-partner-400">円</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center">
+          <p class="text-xs text-gray-400 mb-1">保留件数</p>
+          <p class="text-2xl font-bold text-amber-500" x-text="data.this_month.pending_count"></p>
+          <p class="text-xs text-gray-400">件</p>
+        </div>
+      </div>
+
+      <!-- 3. Rank Progress -->
+      <template x-if="data.rank.progress">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 class="text-sm font-bold text-gray-700 mb-4">
+            <span x-text="data.rank.progress.next_emoji"></span>
+            <span x-text="data.rank.progress.next_rank + 'ランクへの進捗'"></span>
+            <span class="text-xs font-normal text-gray-400 ml-1">(直近3ヶ月)</span>
+          </h2>
+          <!-- Count progress -->
+          <div class="mb-4">
+            <div class="flex justify-between text-xs text-gray-500 mb-1">
+              <span>紹介件数</span>
+              <span><span x-text="data.rank.progress.count_current"></span> / <span x-text="data.rank.progress.count_needed"></span> 件</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-3">
+              <div class="bg-partner-500 h-3 rounded-full progress-bar" :style="'width:' + data.rank.progress.count_progress + '%'"></div>
+            </div>
+          </div>
+          <!-- Sales progress -->
+          <div class="mb-3">
+            <div class="flex justify-between text-xs text-gray-500 mb-1">
+              <span>紹介売上</span>
+              <span><span x-text="fmt(data.rank.progress.sales_current)"></span> / <span x-text="fmt(data.rank.progress.sales_needed)"></span> 円</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-3">
+              <div class="bg-partner-400 h-3 rounded-full progress-bar" :style="'width:' + data.rank.progress.sales_progress + '%'"></div>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400">※ いずれか一方の条件を達成すればランクアップします</p>
+        </div>
+      </template>
+
+      <!-- 4. Rolling 3 Months Table -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+        <h2 class="text-sm font-bold text-gray-700 mb-4">直近3ヶ月の実績</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-100 text-gray-400 text-xs">
+                <th class="text-left py-2 pr-2">月</th>
+                <th class="text-right py-2 px-2">確定件数</th>
+                <th class="text-right py-2 px-2">確定売上</th>
+                <th class="text-right py-2 px-2">保留</th>
+                <th class="text-right py-2 pl-2">キャンセル</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="ms in data.rolling_3m.monthly" :key="ms.month">
+                <tr class="border-b border-gray-50">
+                  <td class="py-2 pr-2 font-medium" x-text="ms.month"></td>
+                  <td class="text-right py-2 px-2" x-text="ms.confirmed_count"></td>
+                  <td class="text-right py-2 px-2" x-text="fmt(ms.confirmed_sales) + '円'"></td>
+                  <td class="text-right py-2 px-2 text-amber-500" x-text="ms.pending_count"></td>
+                  <td class="text-right py-2 pl-2 text-gray-400" x-text="ms.cancelled_count"></td>
+                </tr>
+              </template>
+              <tr class="border-t border-gray-200 font-bold">
+                <td class="py-2 pr-2">合計</td>
+                <td class="text-right py-2 px-2" x-text="data.rolling_3m.confirmed_count"></td>
+                <td class="text-right py-2 px-2" x-text="fmt(data.rolling_3m.confirmed_sales) + '円'"></td>
+                <td class="text-right py-2 px-2 text-amber-500"
+                  x-text="data.rolling_3m.monthly.reduce((s, m) => s + m.pending_count, 0)"></td>
+                <td class="text-right py-2 pl-2 text-gray-400"
+                  x-text="data.rolling_3m.monthly.reduce((s, m) => s + m.cancelled_count, 0)"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 5. Referral Link -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+        <h2 class="text-sm font-bold text-gray-700 mb-3">紹介リンク</h2>
+        <div class="flex gap-2">
+          <input type="text" readonly
+            :value="'https://order.tokyoflower.jp/?id=' + data.partner.partner_id"
+            class="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono text-gray-600 select-all">
+          <button @click="copyLink()" class="bg-partner-600 hover:bg-partner-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition whitespace-nowrap">
+            <span x-text="copied ? 'コピー済み!' : 'コピー'"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 6. Recent Orders -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+        <h2 class="text-sm font-bold text-gray-700 mb-4">紹介注文一覧 <span class="text-xs font-normal text-gray-400">(最新20件)</span></h2>
+        <template x-if="data.recent_orders.length === 0">
+          <p class="text-sm text-gray-400 text-center py-8">まだ紹介注文はありません</p>
+        </template>
+        <template x-if="data.recent_orders.length > 0">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-gray-100 text-gray-400 text-xs">
+                  <th class="text-left py-2 pr-2">注文ID</th>
+                  <th class="text-left py-2 px-2">日時</th>
+                  <th class="text-left py-2 px-2">商品名</th>
+                  <th class="text-right py-2 px-2">金額</th>
+                  <th class="text-center py-2 pl-2">ステータス</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="o in data.recent_orders" :key="o.order_id">
+                  <tr class="border-b border-gray-50">
+                    <td class="py-2 pr-2 font-mono text-xs" x-text="o.order_id"></td>
+                    <td class="py-2 px-2 text-xs text-gray-500" x-text="fmtDate(o.ordered_at)"></td>
+                    <td class="py-2 px-2 text-xs max-w-[160px] truncate" x-text="o.item_names"></td>
+                    <td class="py-2 px-2 text-right" x-text="fmt(o.product_amount_after_discount) + '円'"></td>
+                    <td class="py-2 pl-2 text-center">
+                      <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+                        :class="statusClass(o.achievement_status)"
+                        x-text="statusLabel(o.achievement_status)"></span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </template>
+      </div>
+
+      <!-- 7. Cumulative Stats -->
+      <div class="grid grid-cols-2 gap-3 mb-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center">
+          <p class="text-xs text-gray-400 mb-1">累計紹介件数</p>
+          <p class="text-2xl font-bold text-gray-800" x-text="data.total_orders"></p>
+          <p class="text-xs text-gray-400">件</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center">
+          <p class="text-xs text-gray-400 mb-1">累計確定売上</p>
+          <p class="text-2xl font-bold text-gray-800" x-text="fmt(data.total_confirmed_sales)"></p>
+          <p class="text-xs text-gray-400">円</p>
+        </div>
+      </div>
+
+      <!-- 8. Rank System Info -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+        <h2 class="text-sm font-bold text-gray-700 mb-4">ランク制度について</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-100 text-gray-400 text-xs">
+                <th class="text-left py-2 pr-2">ランク</th>
+                <th class="text-right py-2 px-2">報酬率</th>
+                <th class="text-right py-2 pl-2">達成条件（3ヶ月）</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-gray-50">
+                <td class="py-2 pr-2"><span class="rank-platinum px-2 py-0.5 rounded-full text-xs font-bold">💎 プラチナ</span></td>
+                <td class="text-right py-2 px-2 font-bold">15%</td>
+                <td class="text-right py-2 pl-2 text-xs text-gray-500">30件 or 30万円</td>
+              </tr>
+              <tr class="border-b border-gray-50">
+                <td class="py-2 pr-2"><span class="rank-gold px-2 py-0.5 rounded-full text-xs font-bold">🥇 ゴールド</span></td>
+                <td class="text-right py-2 px-2 font-bold">12%</td>
+                <td class="text-right py-2 pl-2 text-xs text-gray-500">15件 or 10万円</td>
+              </tr>
+              <tr class="border-b border-gray-50">
+                <td class="py-2 pr-2"><span class="rank-silver px-2 py-0.5 rounded-full text-xs font-bold">🥈 シルバー</span></td>
+                <td class="text-right py-2 px-2 font-bold">8%</td>
+                <td class="text-right py-2 pl-2 text-xs text-gray-500">5件 or 3万円</td>
+              </tr>
+              <tr>
+                <td class="py-2 pr-2"><span class="rank-regular px-2 py-0.5 rounded-full text-xs font-bold">🌱 レギュラー</span></td>
+                <td class="text-right py-2 px-2 font-bold">5%</td>
+                <td class="text-right py-2 pl-2 text-xs text-gray-500">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-xs text-gray-400 mt-3">※ 件数・売上のいずれか一方を達成すればランクアップします</p>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    function partnerMypage() {
+      return {
+        loading: true,
+        errorMsg: '',
+        data: null,
+        copied: false,
+
+        init() {
+          var session = localStorage.getItem('partner_session') || sessionStorage.getItem('partner_session');
+          if (!session) {
+            window.location.href = 'login.html';
+            return;
+          }
+          var s = JSON.parse(session);
+          this.fetchData(s.partner_id, s.email);
+        },
+
+        async fetchData(partnerId, email) {
+          this.loading = true;
+          try {
+            var res = await fetch(CONFIG.API_BASE, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain' },
+              body: JSON.stringify({ action: 'partner_mypage', partner_id: partnerId, email: email })
+            });
+            var json = await res.json();
+            if (json.error) {
+              // Auth error → logout
+              localStorage.removeItem('partner_session');
+              sessionStorage.removeItem('partner_session');
+              this.errorMsg = json.error;
+              this.loading = false;
+              return;
+            }
+            this.data = json;
+          } catch (e) {
+            this.errorMsg = '通信エラーが発生しました。';
+          }
+          this.loading = false;
+        },
+
+        fmt(n) {
+          return Number(n || 0).toLocaleString();
+        },
+
+        fmtDate(s) {
+          if (!s) return '-';
+          var d = new Date(s);
+          return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+        },
+
+        rankClass(name) {
+          var map = {
+            'レギュラー': 'rank-regular',
+            'シルバー': 'rank-silver',
+            'ゴールド': 'rank-gold',
+            'プラチナ': 'rank-platinum'
+          };
+          return map[name] || 'rank-regular';
+        },
+
+        statusClass(s) {
+          return {
+            'confirmed': 'bg-green-100 text-green-700',
+            'pending': 'bg-amber-100 text-amber-700',
+            'cancelled': 'bg-gray-100 text-gray-500'
+          }[s] || 'bg-gray-100 text-gray-500';
+        },
+
+        statusLabel(s) {
+          return { 'confirmed': '確定', 'pending': '保留', 'cancelled': 'キャンセル' }[s] || s;
+        },
+
+        copyLink() {
+          var link = 'https://order.tokyoflower.jp/?id=' + this.data.partner.partner_id;
+          navigator.clipboard.writeText(link);
+          this.copied = true;
+          setTimeout(() => { this.copied = false; }, 2000);
+        }
+      };
+    }
+  </script>
+</body>
+</html>

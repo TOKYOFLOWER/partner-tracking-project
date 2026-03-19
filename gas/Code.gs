@@ -157,6 +157,10 @@ function doPost(e) {
         return handlePartnerRegister(body);
       case 'partner_update_status':
         return handlePartnerUpdateStatus(body);
+      case 'partner_login':
+        return handlePartnerLogin(body);
+      case 'partner_mypage':
+        return handlePartnerMypage(body);
       default:
         return jsonResponse({ error: 'Unknown action: ' + action });
     }
@@ -636,6 +640,222 @@ function handleAggregateMonthly() {
 
   var result = Object.values(monthlyMap).sort(function(a, b) { return a.month.localeCompare(b.month); });
   return jsonResponse(result);
+}
+
+// ============================================================
+// パートナーログイン・マイページ
+// ============================================================
+
+function handlePartnerLogin(body) {
+  var partnerId = body.partner_id;
+  var email = body.email;
+  if (!partnerId || !email) {
+    return jsonResponse({ error: 'パートナーIDとメールアドレスを入力してください' });
+  }
+
+  var partners = sheetToArray('partners');
+  var p = partners.find(function(x) {
+    return x.partner_id === partnerId && x.email === email;
+  });
+
+  if (!p) {
+    return jsonResponse({ error: 'パートナーIDまたはメールアドレスが正しくありません' });
+  }
+
+  if (p.status !== 'active') {
+    var statusMsg = {
+      'pending': 'アカウントは現在申請審査中です。承認後にログインできます。',
+      'inactive': 'アカウントは現在無効になっています。お問い合わせください。'
+    };
+    return jsonResponse({ error: statusMsg[p.status] || 'アカウントが無効です' });
+  }
+
+  return jsonResponse({
+    success: true,
+    partner: {
+      partner_id: p.partner_id,
+      partner_name: p.partner_name,
+      partner_name_kana: p.partner_name_kana,
+      email: p.email,
+      status: p.status,
+      created_at: formatJST(p.created_at)
+    }
+  });
+}
+
+function handlePartnerMypage(body) {
+  var partnerId = body.partner_id;
+  var email = body.email;
+  if (!partnerId || !email) {
+    return jsonResponse({ error: '認証情報がありません' });
+  }
+
+  // 認証チェック
+  var partners = sheetToArray('partners');
+  var p = partners.find(function(x) {
+    return x.partner_id === partnerId && x.email === email && x.status === 'active';
+  });
+  if (!p) {
+    return jsonResponse({ error: '認証に失敗しました。再ログインしてください。' });
+  }
+
+  var orders = loadOrdersForApi();
+  var myOrders = orders.filter(function(o) { return o.partner_id === partnerId; });
+
+  // 現在月
+  var now = nowJST();
+  var thisYear = now.getFullYear();
+  var thisMonth = now.getMonth(); // 0-indexed
+
+  // 直近3ヶ月の計算（当月含む）
+  var months3 = [];
+  for (var i = 0; i < 3; i++) {
+    var d = new Date(thisYear, thisMonth - i, 1);
+    months3.push({ year: d.getFullYear(), month: d.getMonth() });
+  }
+
+  // 月別集計
+  var monthlyStats = [];
+  for (var m = 0; m < months3.length; m++) {
+    var my = months3[m].year;
+    var mm = months3[m].month;
+    var monthOrders = myOrders.filter(function(o) {
+      var dt = new Date(o.ordered_at);
+      return dt.getFullYear() === my && dt.getMonth() === mm;
+    });
+    var confirmed = monthOrders.filter(function(o) { return o.achievement_status === 'confirmed'; });
+    var pending = monthOrders.filter(function(o) { return o.achievement_status === 'pending'; });
+    var cancelled = monthOrders.filter(function(o) { return o.achievement_status === 'cancelled'; });
+
+    var confirmedSales = confirmed.reduce(function(s, o) { return s + (o.product_amount_after_discount || 0); }, 0);
+    var pendingSales = pending.reduce(function(s, o) { return s + (o.product_amount_after_discount || 0); }, 0);
+
+    monthlyStats.push({
+      month: my + '-' + String(mm + 1).padStart(2, '0'),
+      confirmed_count: confirmed.length,
+      confirmed_sales: confirmedSales,
+      pending_count: pending.length,
+      pending_sales: pendingSales,
+      cancelled_count: cancelled.length,
+      total_count: monthOrders.length
+    });
+  }
+
+  // 直近3ヶ月の確定件数・確定売上合計（ランク計算用）
+  var total3mConfirmedCount = 0;
+  var total3mConfirmedSales = 0;
+  for (var j = 0; j < monthlyStats.length; j++) {
+    total3mConfirmedCount += monthlyStats[j].confirmed_count;
+    total3mConfirmedSales += monthlyStats[j].confirmed_sales;
+  }
+
+  // ランク判定
+  var rankInfo = calcPartnerRank(total3mConfirmedCount, total3mConfirmedSales);
+
+  // 当月の報酬見込み
+  var thisMonthStats = monthlyStats[0]; // 最新月
+  var estimatedCommission = Math.floor(thisMonthStats.confirmed_sales * rankInfo.rate);
+
+  // 直近注文一覧（最新20件）
+  myOrders.sort(function(a, b) {
+    return new Date(b.ordered_at) - new Date(a.ordered_at);
+  });
+  var recentOrders = myOrders.slice(0, 20).map(function(o) {
+    return {
+      order_id: o.order_id,
+      ordered_at: o.ordered_at,
+      item_names: o.item_names,
+      product_amount_after_discount: o.product_amount_after_discount,
+      achievement_status: o.achievement_status
+    };
+  });
+
+  return jsonResponse({
+    partner: {
+      partner_id: p.partner_id,
+      partner_name: p.partner_name,
+      status: p.status,
+      created_at: formatJST(p.created_at)
+    },
+    rank: rankInfo,
+    this_month: {
+      month: thisMonthStats.month,
+      confirmed_count: thisMonthStats.confirmed_count,
+      confirmed_sales: thisMonthStats.confirmed_sales,
+      pending_count: thisMonthStats.pending_count,
+      pending_sales: thisMonthStats.pending_sales,
+      estimated_commission: estimatedCommission
+    },
+    rolling_3m: {
+      confirmed_count: total3mConfirmedCount,
+      confirmed_sales: total3mConfirmedSales,
+      monthly: monthlyStats
+    },
+    recent_orders: recentOrders,
+    total_orders: myOrders.length,
+    total_confirmed_sales: myOrders
+      .filter(function(o) { return o.achievement_status === 'confirmed'; })
+      .reduce(function(s, o) { return s + (o.product_amount_after_discount || 0); }, 0)
+  });
+}
+
+function calcPartnerRank(count3m, sales3m) {
+  // ランク定義（上位から判定）
+  var ranks = [
+    { name: 'プラチナ', rate: 0.15, emoji: '💎',
+      achieve_count: 30, achieve_sales: 300000,
+      keep_count: 20, keep_sales: 200000 },
+    { name: 'ゴールド', rate: 0.12, emoji: '🥇',
+      achieve_count: 15, achieve_sales: 100000,
+      keep_count: 10, keep_sales: 70000 },
+    { name: 'シルバー', rate: 0.08, emoji: '🥈',
+      achieve_count: 5, achieve_sales: 30000,
+      keep_count: 3, keep_sales: 20000 },
+    { name: 'レギュラー', rate: 0.05, emoji: '🌱',
+      achieve_count: 0, achieve_sales: 0,
+      keep_count: 0, keep_sales: 0 }
+  ];
+
+  var currentRank = ranks[3]; // デフォルトはレギュラー
+  for (var i = 0; i < ranks.length; i++) {
+    var r = ranks[i];
+    if (count3m >= r.achieve_count || sales3m >= r.achieve_sales) {
+      currentRank = r;
+      break;
+    }
+  }
+
+  // 次のランクへの進捗
+  var nextRank = null;
+  for (var k = 0; k < ranks.length; k++) {
+    if (ranks[k].name === currentRank.name && k > 0) {
+      nextRank = ranks[k - 1];
+      break;
+    }
+  }
+
+  var progress = null;
+  if (nextRank) {
+    progress = {
+      next_rank: nextRank.name,
+      next_emoji: nextRank.emoji,
+      next_rate: nextRank.rate,
+      count_needed: nextRank.achieve_count,
+      count_current: count3m,
+      count_progress: Math.min(100, Math.round((count3m / nextRank.achieve_count) * 100)),
+      sales_needed: nextRank.achieve_sales,
+      sales_current: sales3m,
+      sales_progress: Math.min(100, Math.round((sales3m / nextRank.achieve_sales) * 100))
+    };
+  }
+
+  return {
+    name: currentRank.name,
+    emoji: currentRank.emoji,
+    rate: currentRank.rate,
+    rate_percent: currentRank.rate * 100,
+    progress: progress
+  };
 }
 
 // ============================================================
