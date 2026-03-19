@@ -18,6 +18,7 @@
   </script>
   <style>
     body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; }
+    [x-cloak] { display: none !important; }
   </style>
 </head>
 <body class="bg-white text-gray-800 min-h-screen flex flex-col">
@@ -40,7 +41,7 @@
   </header>
 
   <!-- Main -->
-  <main class="flex-1 max-w-3xl mx-auto w-full px-4 py-6" x-data="productDetail()" x-init="init()">
+  <main class="flex-1 max-w-2xl mx-auto w-full px-4 py-6 pb-24 sm:pb-6" x-data="productDetail()" x-init="init()" x-cloak>
 
     <!-- Loading -->
     <div x-show="loading" class="text-center py-20 text-gray-400">読み込み中...</div>
@@ -58,77 +59,124 @@
         <span class="text-gray-600" x-text="product.name"></span>
       </nav>
 
-      <!-- Product Image -->
-      <div class="aspect-[4/3] relative bg-primary-50 overflow-hidden rounded-xl mb-6">
-        <img :src="product.image" :alt="product.name"
-          class="w-full h-full object-cover"
-          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-        <div class="absolute inset-0 flex items-center justify-center bg-primary-50 text-primary-300 text-6xl" style="display:none;">&#x1F33F;</div>
-        <div x-show="!isInStock()"
-          class="absolute inset-0 bg-black/40 flex items-center justify-center">
-          <span class="bg-white text-gray-700 font-bold text-lg px-6 py-2 rounded">SOLD OUT</span>
+      <!-- Gallery -->
+      <div class="group relative bg-gray-50 overflow-hidden rounded-xl"
+           x-data="gallery(product.image_count, product.product_id, product.image)"
+           x-init="init()"
+           @touchstart="onTouchStart($event)"
+           @touchend="onTouchEnd($event)">
+
+        <!-- Images -->
+        <div class="aspect-square relative">
+          <template x-for="(img, i) in images" :key="i">
+            <img :src="img" :alt="$root.querySelector('[x-data*=productDetail]') ? product.name + ' 画像' + (i+1) : ''"
+                 x-show="current === i"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 class="absolute inset-0 w-full h-full object-contain"
+                 @error="onImageError($event, i)">
+          </template>
+          <!-- SOLD OUT overlay -->
+          <div x-show="!$data._isInStock"
+            class="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+            <span class="bg-white text-gray-700 font-bold text-lg px-6 py-2 rounded">SOLD OUT</span>
+          </div>
         </div>
-      </div>
 
-      <!-- Product Name -->
-      <h1 class="text-2xl font-bold mb-3" x-text="product.name"></h1>
+        <!-- Counter -->
+        <div x-show="total > 1"
+             class="absolute bottom-3 right-3 bg-black/50 text-white text-xs px-2.5 py-1 rounded-full z-10">
+          <span x-text="(current + 1) + ' / ' + total"></span>
+        </div>
 
-      <!-- Price -->
-      <p class="text-xl font-bold text-primary-700 mb-4">
-        <span x-text="'¥' + Number(product.price).toLocaleString()"></span>
-        <span class="text-sm font-normal text-gray-400">（税込）</span>
-      </p>
-
-      <!-- Description -->
-      <p class="text-gray-600 whitespace-pre-line mb-6 leading-relaxed" x-text="product.description"></p>
-
-      <!-- Add to Cart -->
-      <div class="mb-8">
-        <button x-show="isInStock()" @click="addToCart()"
-          class="w-full sm:w-auto bg-primary-600 hover:bg-primary-700 text-white font-medium px-8 py-3 rounded-lg transition active:scale-95 text-base">
-          カートに入れる
+        <!-- Arrows (PC) -->
+        <button x-show="current > 0" @click="prev()"
+          class="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 hover:bg-white rounded-full items-center justify-center shadow transition opacity-0 group-hover:opacity-100 z-10">
+          <svg class="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
-        <div x-show="!isInStock()" class="text-gray-400 font-bold text-center py-3">現在売り切れです</div>
+        <button x-show="current < total - 1" @click="next()"
+          class="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/80 hover:bg-white rounded-full items-center justify-center shadow transition opacity-0 group-hover:opacity-100 z-10">
+          <svg class="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </button>
       </div>
 
-      <!-- Additional Info -->
-      <div class="border-t border-gray-100 pt-6 space-y-3">
-        <h2 class="text-sm font-bold text-gray-700 mb-3">お届けについて</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div class="flex gap-3 items-start bg-gray-50 rounded-lg p-3">
-            <span class="text-primary-500 mt-0.5">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/></svg>
-            </span>
-            <div>
-              <p class="font-medium text-gray-700">送料</p>
-              <p class="text-gray-500">¥10,000以上で送料無料（未満は¥550）</p>
+      <!-- Dots -->
+      <div x-data="{ g: null }" x-init="g = $root.querySelector('[x-data*=gallery]').__x.$data || {}" x-show="false"></div>
+      <template x-if="product.image_count > 1">
+        <div class="flex justify-center gap-1.5 py-3"
+             x-data="galleryDots(product.image_count)"
+             @gallery-change.window="current = $event.detail.current">
+          <template x-for="i in total" :key="'dot'+i">
+            <button @click="$dispatch('gallery-goto', { index: i - 1 })"
+              :class="current === (i - 1) ? 'bg-gray-800 w-2.5' : 'bg-gray-300 w-2'"
+              class="h-2 rounded-full transition-all duration-200"></button>
+          </template>
+        </div>
+      </template>
+
+      <!-- Product Info -->
+      <div class="mt-5">
+        <!-- Product Name -->
+        <h1 class="text-2xl font-bold mb-3" x-text="product.name"></h1>
+
+        <!-- Price -->
+        <p class="text-xl font-bold text-primary-700 mb-4">
+          <span x-text="'¥' + Number(product.price).toLocaleString()"></span>
+          <span class="text-sm font-normal text-gray-400">（税込）</span>
+        </p>
+
+        <!-- Description -->
+        <p class="text-gray-600 whitespace-pre-line mb-6 leading-relaxed" x-text="product.description"></p>
+
+        <!-- Add to Cart (desktop) -->
+        <div class="mb-8 hidden sm:block">
+          <button x-show="isInStock()" @click="addToCart()"
+            class="w-full sm:w-auto bg-primary-600 hover:bg-primary-700 text-white font-medium px-8 py-3 rounded-lg transition active:scale-95 text-base">
+            カートに入れる
+          </button>
+          <div x-show="!isInStock()" class="text-gray-400 font-bold text-center py-3">現在売り切れです</div>
+        </div>
+
+        <!-- Additional Info -->
+        <div class="border-t border-gray-100 pt-6">
+          <h2 class="text-sm font-bold text-gray-700 mb-3">お届けについて</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div class="flex gap-3 items-start bg-gray-50 rounded-lg p-3">
+              <span class="text-primary-500 mt-0.5">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/></svg>
+              </span>
+              <div>
+                <p class="font-medium text-gray-700">送料</p>
+                <p class="text-gray-500">¥10,000以上で送料無料（未満は¥550）</p>
+              </div>
             </div>
-          </div>
-          <div class="flex gap-3 items-start bg-gray-50 rounded-lg p-3">
-            <span class="text-primary-500 mt-0.5">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
-            </span>
-            <div>
-              <p class="font-medium text-gray-700">お届け</p>
-              <p class="text-gray-500">ご注文時にお届け日をご指定いただけます</p>
+            <div class="flex gap-3 items-start bg-gray-50 rounded-lg p-3">
+              <span class="text-primary-500 mt-0.5">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z"/></svg>
+              </span>
+              <div>
+                <p class="font-medium text-gray-700">ラッピング</p>
+                <p class="text-gray-500">無料</p>
+              </div>
             </div>
-          </div>
-          <div class="flex gap-3 items-start bg-gray-50 rounded-lg p-3">
-            <span class="text-primary-500 mt-0.5">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z"/></svg>
-            </span>
-            <div>
-              <p class="font-medium text-gray-700">ラッピング</p>
-              <p class="text-gray-500">無料</p>
+            <div class="flex gap-3 items-start bg-gray-50 rounded-lg p-3">
+              <span class="text-primary-500 mt-0.5">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"/></svg>
+              </span>
+              <div>
+                <p class="font-medium text-gray-700">メッセージカード</p>
+                <p class="text-gray-500">無料</p>
+              </div>
             </div>
-          </div>
-          <div class="flex gap-3 items-start bg-gray-50 rounded-lg p-3">
-            <span class="text-primary-500 mt-0.5">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"/></svg>
-            </span>
-            <div>
-              <p class="font-medium text-gray-700">メッセージカード</p>
-              <p class="text-gray-500">無料</p>
+            <div class="flex gap-3 items-start bg-gray-50 rounded-lg p-3">
+              <span class="text-primary-500 mt-0.5">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
+              </span>
+              <div>
+                <p class="font-medium text-gray-700">お届け</p>
+                <p class="text-gray-500">ご注文から3-5営業日</p>
+              </div>
             </div>
           </div>
         </div>
@@ -137,9 +185,20 @@
 
     <!-- Toast -->
     <div x-show="toast" x-transition.opacity.duration.300ms
-      class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm z-50"
+      class="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm z-50"
       x-text="toastMessage"></div>
   </main>
+
+  <!-- Sticky Cart Button (mobile) -->
+  <div x-data="{ show: false }" x-init="
+    window.addEventListener('product-loaded', (e) => { show = e.detail.inStock; });
+  " x-show="show" x-cloak
+    class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-3 sm:hidden z-20">
+    <button @click="document.dispatchEvent(new CustomEvent('do-add-to-cart'))"
+      class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-lg transition active:scale-[0.98]">
+      カートに入れる
+    </button>
+  </div>
 
   <!-- Footer -->
   <footer class="text-center text-xs text-gray-400 py-4 border-t border-gray-50">
@@ -153,6 +212,77 @@
   <script src="js/cart.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
   <script>
+    function gallery(imageCount, productId, fallbackImage) {
+      return {
+        current: 0,
+        total: imageCount || 0,
+        images: [],
+        startX: 0,
+        dragging: false,
+
+        init() {
+          if (this.total > 0) {
+            for (var i = 1; i <= this.total; i++) {
+              var num = String(i).padStart(2, '0');
+              this.images.push('images/' + productId + '/' + num + '.jpg');
+            }
+          } else if (fallbackImage) {
+            this.images = [fallbackImage];
+            this.total = 1;
+          }
+
+          // Listen for goto events from dots
+          window.addEventListener('gallery-goto', (e) => {
+            this.current = e.detail.index;
+            window.dispatchEvent(new CustomEvent('gallery-change', { detail: { current: this.current } }));
+          });
+        },
+
+        next() {
+          if (this.current < this.total - 1) {
+            this.current++;
+            window.dispatchEvent(new CustomEvent('gallery-change', { detail: { current: this.current } }));
+          }
+        },
+        prev() {
+          if (this.current > 0) {
+            this.current--;
+            window.dispatchEvent(new CustomEvent('gallery-change', { detail: { current: this.current } }));
+          }
+        },
+
+        onTouchStart(e) {
+          this.startX = e.touches[0].clientX;
+          this.dragging = true;
+        },
+        onTouchEnd(e) {
+          if (!this.dragging) return;
+          this.dragging = false;
+          var diff = this.startX - e.changedTouches[0].clientX;
+          if (Math.abs(diff) > 50) {
+            if (diff > 0) this.next();
+            else this.prev();
+          }
+        },
+
+        onImageError(e, index) {
+          var src = e.target.src;
+          if (src.endsWith('.jpg')) {
+            e.target.src = src.replace('.jpg', '.svg');
+          } else if (src.endsWith('.svg')) {
+            e.target.src = src.replace('.svg', '.png');
+          }
+        }
+      };
+    }
+
+    function galleryDots(imageCount) {
+      return {
+        current: 0,
+        total: imageCount || 0
+      };
+    }
+
     function productDetail() {
       return {
         product: null,
@@ -173,11 +303,16 @@
           try {
             this.product = await API.fetchProduct(id);
             document.title = this.product.name + ' - 花のアトリエ';
+            // Notify sticky button
+            window.dispatchEvent(new CustomEvent('product-loaded', { detail: { inStock: this.isInStock() } }));
           } catch (e) {
             this.error = e.message;
           } finally {
             this.loading = false;
           }
+
+          // Listen for mobile cart button
+          document.addEventListener('do-add-to-cart', () => { this.addToCart(); });
         },
 
         isInStock() {
