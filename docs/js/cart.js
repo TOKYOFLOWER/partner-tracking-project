@@ -55,6 +55,14 @@ const Cart = {
     this._saveCart(cart);
   },
 
+  getCartItems() {
+    return this.getCart().items;
+  },
+
+  saveCartItems(items) {
+    this._saveCart({ items: items, updated_at: null });
+  },
+
   clearCart() {
     localStorage.removeItem(CART_STORAGE_KEY);
   },

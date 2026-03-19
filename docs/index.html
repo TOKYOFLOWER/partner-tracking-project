@@ -18,6 +18,7 @@
   </script>
   <style>
     body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif; }
+    [x-cloak] { display: none !important; }
     .img-placeholder {
       display: flex; align-items: center; justify-content: center;
       background: #f0fdf4; color: #86efac; font-size: 3rem;
@@ -106,6 +107,69 @@
     <div x-show="toast" x-transition.opacity.duration.300ms
       class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm z-50"
       x-text="toastMessage"></div>
+
+    <!-- Variant Modal -->
+    <div x-show="showModal" x-cloak
+      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      @keydown.escape.window="showModal = false">
+      <div class="absolute inset-0 bg-black/40" @click="showModal = false"></div>
+      <div class="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto shadow-2xl"
+           x-show="showModal"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="translate-y-full sm:translate-y-0 sm:opacity-0 sm:scale-95"
+           x-transition:enter-end="translate-y-0 sm:scale-100 sm:opacity-100"
+           x-transition:leave="transition ease-in duration-150"
+           x-transition:leave-start="translate-y-0 sm:scale-100 sm:opacity-100"
+           x-transition:leave-end="translate-y-full sm:translate-y-0 sm:opacity-0 sm:scale-95">
+        <div class="sticky top-0 bg-white border-b border-gray-100 px-5 py-3 flex items-center justify-between z-10">
+          <h3 class="font-bold text-base" x-text="modalProduct ? modalProduct.name : ''"></h3>
+          <button @click="showModal = false" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="px-5 py-4">
+          <div class="flex gap-4 mb-4">
+            <img :src="modalThumb" class="w-24 h-24 object-cover rounded-lg bg-gray-50" onerror="this.style.display='none'">
+            <div>
+              <p class="text-lg font-bold text-primary-700" x-text="'¥' + modalDisplayPrice().toLocaleString()"></p>
+              <p class="text-xs text-gray-400">（税込）</p>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <template x-for="opt in modalVariants.options" :key="opt.name">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-sm font-bold text-gray-700" x-text="opt.name"></span>
+                  <span class="text-xs text-primary-600" x-text="modalSelected[opt.name] || ''"></span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <template x-for="val in opt.values" :key="val">
+                    <button @click="modalSelected[opt.name] = val; updateModalVariant()"
+                      :class="modalSelected[opt.name] === val
+                        ? 'border-primary-600 bg-primary-50 text-primary-700 ring-1 ring-primary-600'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'"
+                      class="px-3 py-2 border rounded-lg text-sm font-medium transition cursor-pointer"
+                      x-text="val"></button>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+          <div x-show="modalCurrentVariant && !modalCurrentVariant.in_stock"
+            class="mt-3 p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600">
+            この組み合わせは現在売り切れです
+          </div>
+        </div>
+        <div class="sticky bottom-0 bg-white border-t border-gray-100 px-5 py-3">
+          <button @click="addToCartFromModal()"
+            :disabled="modalCurrentVariant && !modalCurrentVariant.in_stock"
+            :class="(modalCurrentVariant && !modalCurrentVariant.in_stock) ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700 active:scale-[0.98]'"
+            class="w-full text-white font-bold py-3 rounded-lg transition text-base">
+            カートに入れる
+          </button>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Footer -->
@@ -128,6 +192,13 @@
         activeCategory: 'all',
         toast: false,
         toastMessage: '',
+        // Modal
+        showModal: false,
+        modalProduct: null,
+        modalThumb: '',
+        modalVariants: { options: [], combinations: [] },
+        modalSelected: {},
+        modalCurrentVariant: null,
         categories: [
           { value: 'all', label: 'すべて' },
           { value: 'mothers_day', label: '母の日ギフト' },
@@ -149,11 +220,62 @@
             this.loading = false;
           }
         },
-        addToCart(productId) {
+        async addToCart(productId) {
+          try {
+            var variants = await API.fetchVariants(productId);
+            if (variants.options && variants.options.length > 0) {
+              this.modalProduct = this.products.find(function(p) { return p.product_id === productId; });
+              this.modalVariants = variants;
+              var p = this.modalProduct;
+              this.modalThumb = (p.images && String(p.images).trim()) ? String(p.images).split(/[\n\r]+/)[0].trim() : (p.image || '');
+              var self = this;
+              this.modalSelected = {};
+              variants.options.forEach(function(opt) {
+                self.modalSelected[opt.name] = opt.values[0];
+              });
+              this.updateModalVariant();
+              this.showModal = true;
+              return;
+            }
+          } catch (e) {}
           Cart.addToCart(productId, 1);
           window.dispatchEvent(new CustomEvent('cart-updated'));
           this.showToast('カートに追加しました');
         },
+
+        updateModalVariant() {
+          if (!this.modalVariants.combinations) return;
+          var self = this;
+          this.modalCurrentVariant = this.modalVariants.combinations.find(function(c) {
+            return Object.keys(self.modalSelected).every(function(key) {
+              return c.selections[key] === self.modalSelected[key];
+            });
+          }) || null;
+        },
+
+        modalDisplayPrice() {
+          if (this.modalCurrentVariant && this.modalCurrentVariant.price !== null) {
+            return this.modalCurrentVariant.price;
+          }
+          return this.modalProduct ? Number(this.modalProduct.price) : 0;
+        },
+
+        addToCartFromModal() {
+          if (this.modalCurrentVariant && !this.modalCurrentVariant.in_stock) return;
+          var variantInfo = null;
+          if (this.modalCurrentVariant) {
+            variantInfo = {
+              sku: this.modalCurrentVariant.sku,
+              selections: Object.assign({}, this.modalSelected),
+              price: this.modalDisplayPrice()
+            };
+          }
+          Cart.addToCart(this.modalProduct.product_id, 1, variantInfo);
+          window.dispatchEvent(new CustomEvent('cart-updated'));
+          this.showModal = false;
+          this.showToast('カートに追加しました');
+        },
+
         showToast(msg) {
           this.toastMessage = msg;
           this.toast = true;
