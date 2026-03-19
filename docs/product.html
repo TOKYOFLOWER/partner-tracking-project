@@ -227,59 +227,17 @@
         },
 
         initGallery() {
-          var self = this;
-          var pid = this.product.product_id;
-          var maxImages = 20;
+          var urlText = this.product.images || '';
+          var urls = urlText.split(/[\n\r]+/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
 
-          var loaded = [];
-
-          function checkNext(index) {
-            if (index > maxImages) {
-              finalize();
-              return;
-            }
-            var num = String(index).padStart(2, '0');
-            var basePath = 'images/' + pid + '/' + num;
-
-            var img = new Image();
-            img.onload = function() {
-              loaded.push(basePath + '.jpg');
-              checkNext(index + 1);
-            };
-            img.onerror = function() {
-              var img2 = new Image();
-              img2.onload = function() {
-                loaded.push(basePath + '.svg');
-                checkNext(index + 1);
-              };
-              img2.onerror = function() {
-                var img3 = new Image();
-                img3.onload = function() {
-                  loaded.push(basePath + '.png');
-                  checkNext(index + 1);
-                };
-                img3.onerror = function() {
-                  finalize();
-                };
-                img3.src = basePath + '.png';
-              };
-              img2.src = basePath + '.svg';
-            };
-            img.src = basePath + '.jpg';
+          if (urls.length > 0) {
+            this.gImages = urls;
+            this.gTotal = urls.length;
+          } else if (this.product.image) {
+            this.gImages = [this.product.image];
+            this.gTotal = 1;
           }
-
-          function finalize() {
-            if (loaded.length > 0) {
-              self.gImages = loaded;
-              self.gTotal = loaded.length;
-            } else if (self.product.image) {
-              self.gImages = [self.product.image];
-              self.gTotal = 1;
-            }
-            self.gLoading = false;
-          }
-
-          checkNext(1);
+          this.gLoading = false;
         },
 
         gNext() { if (this.gCurrent < this.gTotal - 1) this.gCurrent++; },
@@ -297,11 +255,11 @@
           var diff = this.mouseStartX - e.clientX;
           if (Math.abs(diff) > 40) { diff > 0 ? this.gNext() : this.gPrev(); }
         },
-        // Image fallback: .jpg -> .svg -> .png
         onImageError(e) {
-          var src = e.target.src;
-          if (src.endsWith('.jpg')) e.target.src = src.replace('.jpg', '.svg');
-          else if (src.endsWith('.svg')) e.target.src = src.replace('.svg', '.png');
+          if (!e.target.dataset.fallback) {
+            e.target.dataset.fallback = '1';
+            e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="#f3f4f6"/><text x="400" y="400" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#9ca3af">画像を読み込めません</text></svg>');
+          }
         },
 
         isInStock() {

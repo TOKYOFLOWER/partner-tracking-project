@@ -72,7 +72,7 @@
           <!-- Image -->
           <a :href="'product.html?id=' + p.product_id" class="block">
             <div class="aspect-[4/3] relative bg-primary-50 overflow-hidden">
-              <img :src="p.image" :alt="p.name"
+              <img :src="(p.images && p.images.trim()) ? p.images.split(/[\n\r]+/)[0].trim() : p.image" :alt="p.name"
                 class="w-full h-full object-cover"
                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
               <div class="img-placeholder absolute inset-0" style="display:none;">&#x1F33F;</div>
