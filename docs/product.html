@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>商品詳細 - 花のアトリエ</title>
+  <title>商品詳細 - 銀座東京フラワー</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            primary: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
+            primary: { 50: '#fdf2f2', 100: '#fce4e4', 200: '#f9c5c5', 400: '#d4292c', 500: '#a50407', 600: '#8a0306', 700: '#6e0205' }
           }
         }
       }
@@ -28,7 +28,7 @@
   <!-- Header -->
   <header class="bg-white border-b border-gray-100 sticky top-0 z-30">
     <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-      <a href="index.html" class="text-lg font-bold text-primary-700 tracking-wide">花のアトリエ</a>
+      <a href="index.html" class="text-lg font-bold text-primary-700 tracking-wide">銀座東京フラワー</a>
       <a href="cart.html" class="relative inline-flex items-center text-gray-600 hover:text-primary-600 transition">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121 0 2.09-.773 2.34-1.865l1.846-8.078A.75.75 0 0 0 22.106 3.5H6.372m1.128 10.75L6.106 5.272" />
@@ -220,7 +220,7 @@
 
   <!-- Footer -->
   <footer class="text-center text-xs text-gray-400 py-4 border-t border-gray-50">
-    &copy; 2026 花のアトリエ
+    &copy; 2026 銀座東京フラワー
   </footer>
 
   <!-- Scripts -->
@@ -246,7 +246,7 @@
           if (!id) { this.error = '商品IDが指定されていません'; this.loading = false; return; }
           try {
             this.product = await API.fetchProduct(id);
-            document.title = this.product.name + ' - 花のアトリエ';
+            document.title = this.product.name + ' - 銀座東京フラワー';
             this.initGallery();
             // バリエーション読み込み
             try {
