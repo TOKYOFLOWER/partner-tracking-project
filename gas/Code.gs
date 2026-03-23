@@ -159,6 +159,8 @@ function doPost(e) {
         return handlePartnerRegister(body);
       case 'partner_update_status':
         return handlePartnerUpdateStatus(body);
+      case 'partner_update_bonus':
+        return handlePartnerUpdateBonus(body);
       case 'partner_login':
         return handlePartnerLogin(body);
       case 'partner_mypage':
@@ -329,6 +331,8 @@ function handlePartnerRegister(body) {
       case 'bank_account_holder': return body.bank_account_holder || '';
       case 'commission_plan': return 'standard';
       case 'memo': return '';
+      case 'bonus_rate': return 0;
+      case 'bonus_rate_memo': return '';
       default: return '';
     }
   });
@@ -355,6 +359,50 @@ function handlePartnerUpdateStatus(body) {
   for (var i = 1; i < data.length; i++) {
     if (data[i][idCol] === partnerId) {
       sheet.getRange(i + 1, statusCol + 1).setValue(newStatus);
+      var partners = sheetToArray('partners');
+      var p = partners.find(function(x) { return x.partner_id === partnerId; });
+      return jsonResponse(p);
+    }
+  }
+  return jsonResponse({ error: 'partner not found' });
+}
+
+function handlePartnerUpdateBonus(body) {
+  var partnerId = body.partner_id;
+  var bonusRate = Number(body.bonus_rate);
+  var memo = String(body.bonus_rate_memo || '').trim();
+
+  if (!partnerId) return jsonResponse({ error: 'partner_id is required' });
+
+  var allowedRates = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  if (allowedRates.indexOf(bonusRate) < 0) {
+    return jsonResponse({ error: '特別加算料率は0〜10%の整数で指定してください' });
+  }
+
+  if (bonusRate > 0 && !memo) {
+    return jsonResponse({ error: '加算料率を設定する場合は理由メモを入力してください' });
+  }
+
+  if (bonusRate === 0) {
+    memo = '';
+  }
+
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName('partners');
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var idCol = headers.indexOf('partner_id');
+  var bonusCol = headers.indexOf('bonus_rate');
+  var memoCol = headers.indexOf('bonus_rate_memo');
+
+  if (bonusCol < 0 || memoCol < 0) {
+    return jsonResponse({ error: 'partnersシートに bonus_rate / bonus_rate_memo 列がありません。手動で追加してください。' });
+  }
+
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][idCol] === partnerId) {
+      sheet.getRange(i + 1, bonusCol + 1).setValue(bonusRate);
+      sheet.getRange(i + 1, memoCol + 1).setValue(memo);
       var partners = sheetToArray('partners');
       var p = partners.find(function(x) { return x.partner_id === partnerId; });
       return jsonResponse(p);
@@ -806,7 +854,10 @@ function handlePartnerMypage(body) {
 
   // 当月の報酬見込み
   var thisMonthStats = monthlyStats[0]; // 最新月
-  var estimatedCommission = Math.floor(thisMonthStats.confirmed_sales * rankInfo.rate);
+  var bonusRate = Number(p.bonus_rate) || 0;
+  var bonusRateDecimal = bonusRate / 100;
+  var totalRate = rankInfo.rate + bonusRateDecimal;
+  var estimatedCommission = Math.floor(thisMonthStats.confirmed_sales * totalRate);
 
   // 直近注文一覧（最新20件）
   myOrders.sort(function(a, b) {
@@ -830,6 +881,10 @@ function handlePartnerMypage(body) {
       created_at: formatJST(p.created_at)
     },
     rank: rankInfo,
+    bonus_rate: bonusRate,
+    bonus_rate_memo: p.bonus_rate_memo || '',
+    total_rate: totalRate,
+    total_rate_percent: Math.round(totalRate * 10000) / 100,
     this_month: {
       month: thisMonthStats.month,
       confirmed_count: thisMonthStats.confirmed_count,

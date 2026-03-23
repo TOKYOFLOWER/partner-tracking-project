@@ -95,5 +95,15 @@ const AdminAPI = {
   // パートナーステータス更新
   updatePartnerStatus(partnerId, status) {
     return this._post({ action: 'partner_update_status', partner_id: partnerId, status: status });
+  },
+
+  // パートナー特別加算料率更新
+  updatePartnerBonus(partnerId, bonusRate, memo) {
+    return this._post({
+      action: 'partner_update_bonus',
+      partner_id: partnerId,
+      bonus_rate: bonusRate,
+      bonus_rate_memo: memo
+    });
   }
 };
