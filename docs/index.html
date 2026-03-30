@@ -233,14 +233,16 @@
           this._timer = setInterval(function() {
             var elapsed = (Date.now() - start) / 1000;
             var p;
-            if (elapsed < 5) {
-              p = (elapsed / 5) * 60;             // 0→60% in 5s
-            } else if (elapsed < 10) {
-              p = 60 + ((elapsed - 5) / 5) * 20;  // 60→80% in 5s
-            } else if (elapsed < 15) {
-              p = 80 + ((elapsed - 10) / 5) * 10;  // 80→90% in 5s
-            } else if (elapsed < 20) {
-              p = 90 + ((elapsed - 15) / 5) * 5;   // 90→95% in 5s
+            if (elapsed < 8) {
+              p = (elapsed / 8) * 40;              // 0→40% in 8s
+            } else if (elapsed < 16) {
+              p = 40 + ((elapsed - 8) / 8) * 20;   // 40→60% in 8s
+            } else if (elapsed < 24) {
+              p = 60 + ((elapsed - 16) / 8) * 15;  // 60→75% in 8s
+            } else if (elapsed < 32) {
+              p = 75 + ((elapsed - 24) / 8) * 10;  // 75→85% in 8s
+            } else if (elapsed < 40) {
+              p = 85 + ((elapsed - 32) / 8) * 10;  // 85→95% in 8s
             } else {
               p = 95;
             }
@@ -249,7 +251,10 @@
           window.addEventListener('products-loaded', function() {
             clearInterval(self._timer);
             self.progress = 100;
-            setTimeout(function() { self.show = false; }, 300);
+            setTimeout(function() {
+              self.show = false;
+              window.dispatchEvent(new CustomEvent('loading-modal-hidden'));
+            }, 500);
           });
         }
       };
@@ -298,6 +303,12 @@
           }
 
           // APIから最新データを取得
+          var self = this;
+          if (!cached) {
+            window.addEventListener('loading-modal-hidden', function() {
+              self.loading = false;
+            });
+          }
           try {
             var freshProducts = await API.fetchProducts();
             if (freshProducts && Array.isArray(freshProducts)) {
@@ -305,6 +316,7 @@
               this.buildCategories();
               setCachedProducts(freshProducts);
               window.dispatchEvent(new CustomEvent('products-loaded'));
+              if (cached) this.loading = false;
               await this.loadVariantPrices();
             }
           } catch (e) {
@@ -312,7 +324,6 @@
               this.error = '商品情報の読み込みに失敗しました';
             }
             window.dispatchEvent(new CustomEvent('products-loaded'));
-          } finally {
             this.loading = false;
           }
         },
