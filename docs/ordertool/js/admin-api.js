@@ -105,5 +105,55 @@ const AdminAPI = {
       bonus_rate: bonusRate,
       bonus_rate_memo: memo
     });
+  },
+
+  // 商品一覧（全件・管理用）
+  fetchAllProducts() {
+    return this._get({ action: 'product_list_all' });
+  },
+
+  // 商品カテゴリ一覧
+  fetchCategories() {
+    return this._get({ action: 'product_categories' });
+  },
+
+  // 商品作成
+  createProduct(data) {
+    return this._post({ action: 'product_create', ...data });
+  },
+
+  // 商品更新
+  updateProduct(data) {
+    return this._post({ action: 'product_update', ...data });
+  },
+
+  // 商品削除
+  deleteProduct(productId) {
+    return this._post({ action: 'product_delete', product_id: productId });
+  },
+
+  // 在庫切替
+  toggleProductStock(productId, inStock) {
+    return this._post({ action: 'product_toggle_stock', product_id: productId, in_stock: inStock });
+  },
+
+  // バリエーション一覧
+  fetchVariants(productId) {
+    return this._get({ action: 'variant_list', product_id: productId });
+  },
+
+  // バリエーション作成
+  createVariant(data) {
+    return this._post({ action: 'variant_create', ...data });
+  },
+
+  // バリエーション更新
+  updateVariant(data) {
+    return this._post({ action: 'variant_update', ...data });
+  },
+
+  // バリエーション削除
+  deleteVariant(variantId) {
+    return this._post({ action: 'variant_delete', variant_id: variantId });
   }
 };

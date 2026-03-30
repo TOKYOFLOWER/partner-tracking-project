@@ -202,11 +202,7 @@
         modalSelected: {},
         modalCurrentVariant: null,
         categories: [
-          { value: 'all', label: 'すべて' },
-          { value: 'mothers_day', label: '母の日ギフト' },
-          { value: 'arrangement', label: 'アレンジメント' },
-          { value: 'bouquet', label: '花束' },
-          { value: 'plant', label: '観葉植物' }
+          { value: 'all', label: 'すべて' }
         ],
         get filteredProducts() {
           if (this.activeCategory === 'all') return this.products;
@@ -214,8 +210,36 @@
         },
         async init() {
           Partner.initPartnerTracking();
+          var categoryLabels = {
+            'mothers_day': '母の日ギフト',
+            'arrangement': 'アレンジメント',
+            'bouquet': '花束',
+            'plant': '観葉植物',
+            'orchid': '胡蝶蘭',
+            'stand': 'スタンド花',
+            'preserved': 'プリザーブドフラワー'
+          };
           try {
             this.products = await API.fetchProducts();
+            // カテゴリを商品データから動的に抽出
+            var catMap = {};
+            for (var ci = 0; ci < this.products.length; ci++) {
+              var cat = this.products[ci].category;
+              if (cat && cat !== '') {
+                if (!catMap[cat]) {
+                  catMap[cat] = Number(this.products[ci].sort_order) || 9999;
+                } else {
+                  var so = Number(this.products[ci].sort_order) || 9999;
+                  if (so < catMap[cat]) catMap[cat] = so;
+                }
+              }
+            }
+            var catEntries = Object.keys(catMap).map(function(c) {
+              return { value: c, label: categoryLabels[c] || c, sortOrder: catMap[c] };
+            });
+            catEntries.sort(function(a, b) { return a.sortOrder - b.sortOrder; });
+            this.categories = [{ value: 'all', label: 'すべて' }].concat(catEntries);
+
             for (var i = 0; i < this.products.length; i++) {
               var p = this.products[i];
               try {

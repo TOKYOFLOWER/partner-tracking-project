@@ -131,6 +131,10 @@ function doGet(e) {
         return handleAggregateMonthly();
       case 'variant_list':
         return handleVariantList(e.parameter.product_id);
+      case 'product_categories':
+        return handleProductCategories();
+      case 'product_list_all':
+        return handleProductListAll();
       default:
         return jsonResponse({ error: 'Unknown action: ' + action });
     }
@@ -165,6 +169,20 @@ function doPost(e) {
         return handlePartnerLogin(body);
       case 'partner_mypage':
         return handlePartnerMypage(body);
+      case 'product_create':
+        return handleProductCreate(body);
+      case 'product_update':
+        return handleProductUpdate(body);
+      case 'product_delete':
+        return handleProductDelete(body);
+      case 'product_toggle_stock':
+        return handleProductToggleStock(body);
+      case 'variant_create':
+        return handleVariantCreate(body);
+      case 'variant_update':
+        return handleVariantUpdate(body);
+      case 'variant_delete':
+        return handleVariantDelete(body);
       default:
         return jsonResponse({ error: 'Unknown action: ' + action });
     }
@@ -243,6 +261,276 @@ function handleVariantList(productId) {
   });
 
   return jsonResponse({ options: options, combinations: combinations });
+}
+
+function handleProductListAll() {
+  var products = sheetToArray('products');
+  products.sort(function(a, b) { return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0); });
+  // in_stock を boolean に正規化
+  products.forEach(function(p) {
+    var v = p.in_stock;
+    p.in_stock = (v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1');
+  });
+  return jsonResponse(products);
+}
+
+function handleProductCategories() {
+  var products = sheetToArray('products');
+  var cats = {};
+  for (var i = 0; i < products.length; i++) {
+    var c = products[i].category;
+    if (c && c !== '') cats[c] = true;
+  }
+  return jsonResponse({ success: true, categories: Object.keys(cats).sort() });
+}
+
+// ============================================================
+// 商品CRUD
+// ============================================================
+
+function handleProductCreate(body) {
+  if (!body.name || !String(body.name).trim()) {
+    return jsonResponse({ error: '商品名は必須です' });
+  }
+  if (body.price === undefined || body.price === null || Number(body.price) <= 0) {
+    return jsonResponse({ error: '価格は正の数値で指定してください' });
+  }
+
+  var products = sheetToArray('products');
+  var maxNum = 0;
+  products.forEach(function(p) {
+    var m = String(p.product_id).match(/^prod(\d+)$/);
+    if (m) {
+      var n = parseInt(m[1], 10);
+      if (n > maxNum) maxNum = n;
+    }
+  });
+  var productId = 'prod' + String(maxNum + 1).padStart(3, '0');
+
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName('products');
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var newRow = headers.map(function(h) {
+    switch (h) {
+      case 'product_id': return productId;
+      case 'name': return body.name || '';
+      case 'description': return body.description || '';
+      case 'price': return Number(body.price) || 0;
+      case 'tax_included': return body.tax_included !== false;
+      case 'image': return body.image || '';
+      case 'category': return body.category || '';
+      case 'in_stock': return body.in_stock !== false;
+      case 'sort_order': return Number(body.sort_order) || 0;
+      default: return '';
+    }
+  });
+  sheet.appendRow(newRow);
+  return jsonResponse({ success: true, product_id: productId });
+}
+
+function handleProductUpdate(body) {
+  var productId = body.product_id;
+  if (!productId) return jsonResponse({ error: 'product_id is required' });
+  if (!body.name || !String(body.name).trim()) {
+    return jsonResponse({ error: '商品名は必須です' });
+  }
+  if (body.price === undefined || body.price === null || Number(body.price) <= 0) {
+    return jsonResponse({ error: '価格は正の数値で指定してください' });
+  }
+
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName('products');
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var idCol = headers.indexOf('product_id');
+
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][idCol] === productId) {
+      for (var j = 0; j < headers.length; j++) {
+        var h = headers[j];
+        if (h === 'product_id') continue;
+        var val;
+        switch (h) {
+          case 'name': val = body.name || ''; break;
+          case 'description': val = body.description || ''; break;
+          case 'price': val = Number(body.price) || 0; break;
+          case 'tax_included': val = body.tax_included !== false; break;
+          case 'image': val = body.image || ''; break;
+          case 'category': val = body.category || ''; break;
+          case 'in_stock': val = body.in_stock !== false; break;
+          case 'sort_order': val = Number(body.sort_order) || 0; break;
+          default: continue;
+        }
+        sheet.getRange(i + 1, j + 1).setValue(val);
+      }
+      return jsonResponse({ success: true });
+    }
+  }
+  return jsonResponse({ error: 'product not found' });
+}
+
+function handleProductDelete(body) {
+  var productId = body.product_id;
+  if (!productId) return jsonResponse({ error: 'product_id is required' });
+
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName('products');
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var idCol = headers.indexOf('product_id');
+
+  var found = false;
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][idCol] === productId) {
+      sheet.deleteRow(i + 1);
+      found = true;
+      break;
+    }
+  }
+  if (!found) return jsonResponse({ error: 'product not found' });
+
+  // 関連バリエーション削除
+  var varSheet = ss.getSheetByName('variants');
+  if (varSheet && varSheet.getLastRow() > 1) {
+    var varData = varSheet.getDataRange().getValues();
+    var varHeaders = varData[0];
+    var varPidCol = varHeaders.indexOf('product_id');
+    for (var k = varData.length - 1; k >= 1; k--) {
+      if (varData[k][varPidCol] === productId) {
+        varSheet.deleteRow(k + 1);
+      }
+    }
+  }
+
+  return jsonResponse({ success: true });
+}
+
+function handleProductToggleStock(body) {
+  var productId = body.product_id;
+  if (!productId) return jsonResponse({ error: 'product_id is required' });
+
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName('products');
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var idCol = headers.indexOf('product_id');
+  var stockCol = headers.indexOf('in_stock');
+
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][idCol] === productId) {
+      sheet.getRange(i + 1, stockCol + 1).setValue(body.in_stock);
+      return jsonResponse({ success: true });
+    }
+  }
+  return jsonResponse({ error: 'product not found' });
+}
+
+// ============================================================
+// バリエーションCRUD
+// ============================================================
+
+function handleVariantCreate(body) {
+  var productId = body.product_id;
+  if (!productId) return jsonResponse({ error: 'product_id is required' });
+  if (!body.variant_name || !String(body.variant_name).trim()) {
+    return jsonResponse({ error: 'バリエーション名は必須です' });
+  }
+  if (body.variant_price === undefined || body.variant_price === null || Number(body.variant_price) <= 0) {
+    return jsonResponse({ error: '価格は正の数値で指定してください' });
+  }
+
+  var ss = getSpreadsheet();
+  var varSheet = ss.getSheetByName('variants');
+  if (!varSheet) return jsonResponse({ error: 'variantsシートが見つかりません' });
+
+  var rows = sheetToArray('variants');
+  var maxNum = 0;
+  rows.forEach(function(r) {
+    var m = String(r.variant_id || r.sku || '').match(/^var(\d+)$/);
+    if (m) {
+      var n = parseInt(m[1], 10);
+      if (n > maxNum) maxNum = n;
+    }
+  });
+  var variantId = 'var' + String(maxNum + 1).padStart(4, '0');
+
+  var headers = varSheet.getRange(1, 1, 1, varSheet.getLastColumn()).getValues()[0];
+  var newRow = headers.map(function(h) {
+    switch (h) {
+      case 'variant_id': return variantId;
+      case 'sku': return variantId;
+      case 'product_id': return productId;
+      case 'option1_name': return 'タイプ';
+      case 'option1_value': return body.variant_name || '';
+      case 'price': return Number(body.variant_price) || 0;
+      case 'description': return body.variant_description || '';
+      case 'image': return body.variant_image || '';
+      case 'in_stock': return body.variant_in_stock !== false;
+      case 'sort_order': return Number(body.variant_sort_order) || 0;
+      default: return '';
+    }
+  });
+  varSheet.appendRow(newRow);
+  return jsonResponse({ success: true, variant_id: variantId });
+}
+
+function handleVariantUpdate(body) {
+  var variantId = body.variant_id;
+  if (!variantId) return jsonResponse({ error: 'variant_id is required' });
+
+  var ss = getSpreadsheet();
+  var varSheet = ss.getSheetByName('variants');
+  if (!varSheet) return jsonResponse({ error: 'variantsシートが見つかりません' });
+
+  var data = varSheet.getDataRange().getValues();
+  var headers = data[0];
+  var skuCol = headers.indexOf('sku');
+  var vidCol = headers.indexOf('variant_id');
+  var idCol = vidCol >= 0 ? vidCol : skuCol;
+
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][idCol] === variantId) {
+      var updateMap = {
+        'option1_value': body.variant_name,
+        'price': body.variant_price !== undefined ? Number(body.variant_price) : undefined,
+        'description': body.variant_description,
+        'image': body.variant_image,
+        'in_stock': body.variant_in_stock,
+        'sort_order': body.variant_sort_order !== undefined ? Number(body.variant_sort_order) : undefined
+      };
+      for (var j = 0; j < headers.length; j++) {
+        var h = headers[j];
+        if (updateMap[h] !== undefined) {
+          varSheet.getRange(i + 1, j + 1).setValue(updateMap[h]);
+        }
+      }
+      return jsonResponse({ success: true });
+    }
+  }
+  return jsonResponse({ error: 'variant not found' });
+}
+
+function handleVariantDelete(body) {
+  var variantId = body.variant_id;
+  if (!variantId) return jsonResponse({ error: 'variant_id is required' });
+
+  var ss = getSpreadsheet();
+  var varSheet = ss.getSheetByName('variants');
+  if (!varSheet) return jsonResponse({ error: 'variantsシートが見つかりません' });
+
+  var data = varSheet.getDataRange().getValues();
+  var headers = data[0];
+  var skuCol = headers.indexOf('sku');
+  var vidCol = headers.indexOf('variant_id');
+  var idCol = vidCol >= 0 ? vidCol : skuCol;
+
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][idCol] === variantId) {
+      varSheet.deleteRow(i + 1);
+      return jsonResponse({ success: true });
+    }
+  }
+  return jsonResponse({ error: 'variant not found' });
 }
 
 // ============================================================
