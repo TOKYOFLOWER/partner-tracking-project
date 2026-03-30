@@ -155,5 +155,16 @@ const AdminAPI = {
   // バリエーション削除
   deleteVariant(variantId) {
     return this._post({ action: 'variant_delete', variant_id: variantId });
+  },
+
+  // 楽天商品情報取得
+  fetchRakutenItem(itemUrlOrCode) {
+    var params = {};
+    if (itemUrlOrCode.includes('rakuten.co.jp')) {
+      params = { action: 'rakuten_item_fetch', item_url: itemUrlOrCode };
+    } else {
+      params = { action: 'rakuten_item_fetch', manage_number: itemUrlOrCode };
+    }
+    return this._post(params);
   }
 };

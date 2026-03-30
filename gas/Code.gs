@@ -181,6 +181,8 @@ function doPost(e) {
         return handleVariantUpdate(body);
       case 'variant_delete':
         return handleVariantDelete(body);
+      case 'rakuten_item_fetch':
+        return handleRakutenItemFetch(body);
       default:
         return jsonResponse({ error: 'Unknown action: ' + action });
     }
@@ -1292,4 +1294,141 @@ function setupSheets() {
   }
 
   SpreadsheetApp.getUi().alert('セットアップが完了しました。\n※既存データがあるシートは再作成されません。カラム変更が必要な場合はシートを手動で削除してから再実行してください。');
+}
+
+// ============================================================
+// スプレッドシート メニュー
+// ============================================================
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('TOKYOFLOWER')
+    .addItem('シート初期セットアップ', 'setupSheets')
+    .addItem('楽天APIキー設定', 'setRakutenApiKeys')
+    .addToUi();
+}
+
+// ============================================================
+// 楽天RMS API連携
+// ============================================================
+
+function setRakutenApiKeys() {
+  var ui = SpreadsheetApp.getUi();
+
+  var secretResult = ui.prompt('楽天API設定', 'serviceSecret を入力してください:', ui.ButtonSet.OK_CANCEL);
+  if (secretResult.getSelectedButton() !== ui.Button.OK) return;
+
+  var licenseResult = ui.prompt('楽天API設定', 'licenseKey を入力してください:', ui.ButtonSet.OK_CANCEL);
+  if (licenseResult.getSelectedButton() !== ui.Button.OK) return;
+
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty('RAKUTEN_SERVICE_SECRET', secretResult.getResponseText().trim());
+  props.setProperty('RAKUTEN_LICENSE_KEY', licenseResult.getResponseText().trim());
+
+  ui.alert('楽天APIキーを保存しました。');
+}
+
+function handleRakutenItemFetch(body) {
+  // 1. 商品管理番号を取得（URLから抽出 or 直接指定）
+  var manageNumber = body.manage_number || '';
+
+  if (!manageNumber && body.item_url) {
+    var urlMatch = body.item_url.match(/item\.rakuten\.co\.jp\/[^\/]+\/([^\/\?]+)/);
+    if (urlMatch) {
+      manageNumber = urlMatch[1];
+    }
+  }
+
+  if (!manageNumber) {
+    return jsonResponse({ success: false, error: '商品URLまたは管理番号を指定してください' });
+  }
+
+  // 2. スクリプトプロパティからAPIキーを取得
+  var props = PropertiesService.getScriptProperties();
+  var serviceSecret = props.getProperty('RAKUTEN_SERVICE_SECRET');
+  var licenseKey = props.getProperty('RAKUTEN_LICENSE_KEY');
+
+  if (!serviceSecret || !licenseKey) {
+    return jsonResponse({ success: false, error: '楽天APIキーが設定されていません。スプレッドシートのメニュー「TOKYOFLOWER」→「楽天APIキー設定」から設定してください。' });
+  }
+
+  // 3. RMS API呼び出し
+  var authToken = Utilities.base64Encode(serviceSecret + ':' + licenseKey);
+  var apiUrl = 'https://api.rms.rakuten.co.jp/es/2.0/items/manage-numbers/' + encodeURIComponent(manageNumber);
+
+  try {
+    var response = UrlFetchApp.fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': 'ESA ' + authToken
+      },
+      muteHttpExceptions: true
+    });
+
+    var statusCode = response.getResponseCode();
+    var responseBody = response.getContentText();
+
+    if (statusCode !== 200) {
+      try {
+        var errorData = JSON.parse(responseBody);
+        var errorMsg = '楽天API エラー (' + statusCode + ')';
+        if (errorData.errors && errorData.errors.length > 0) {
+          errorMsg = errorData.errors[0].message || errorMsg;
+        }
+        return jsonResponse({ success: false, error: errorMsg });
+      } catch (e) {
+        return jsonResponse({ success: false, error: '楽天API エラー (' + statusCode + '): ' + responseBody.substring(0, 200) });
+      }
+    }
+
+    var data = JSON.parse(responseBody);
+
+    // 4. レスポンスから必要な情報を抽出
+    var item = data;
+    var itemName = item.title || item.itemName || '';
+    var description = item.catchCopyForPC || item.itemCaption || item.description || '';
+    description = description.replace(/<[^>]*>/g, '').trim();
+    if (description.length > 200) {
+      description = description.substring(0, 200) + '...';
+    }
+
+    var price = item.standardPrice || item.itemPrice || item.price || 0;
+
+    var images = [];
+    if (item.images) {
+      for (var i = 0; i < item.images.length && i < 5; i++) {
+        var img = item.images[i];
+        if (typeof img === 'string') {
+          images.push(img);
+        } else if (img.location) {
+          images.push(img.location);
+        } else if (img.url) {
+          images.push(img.url);
+        }
+      }
+    }
+    if (images.length === 0 && item.itemImageUrl) {
+      if (Array.isArray(item.itemImageUrl)) {
+        images = item.itemImageUrl.slice(0, 5);
+      } else {
+        images.push(item.itemImageUrl);
+      }
+    }
+
+    return jsonResponse({
+      success: true,
+      item: {
+        manage_number: manageNumber,
+        name: itemName,
+        description: description,
+        price: price,
+        images: images,
+        image: images.length > 0 ? images[0] : '',
+        raw: data
+      }
+    });
+
+  } catch (e) {
+    return jsonResponse({ success: false, error: '楽天APIへの接続に失敗しました: ' + e.message });
+  }
 }
