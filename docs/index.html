@@ -27,6 +27,23 @@
 </head>
 <body class="bg-white text-gray-800 min-h-screen flex flex-col">
 
+  <!-- Initial Loading Modal (no cache) -->
+  <div x-data="loadingOverlay()" x-show="show" x-cloak
+    x-transition:leave="transition ease-in duration-300"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 p-8 text-center">
+      <div class="text-4xl mb-3">&#127800;</div>
+      <div class="text-lg font-bold text-primary-700 mb-1">&#37504;&#24231;&#26481;&#20140;&#12501;&#12521;&#12527;&#12540;</div>
+      <p class="text-sm text-gray-500 mb-5">商品を準備しています...</p>
+      <div class="w-full bg-gray-200 rounded-full h-[3px] overflow-hidden">
+        <div class="h-full bg-primary-500 rounded-full transition-all duration-300 ease-out"
+          :style="'width:' + progress + '%'"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Header -->
   <header class="bg-white border-b border-gray-100 sticky top-0 z-30">
     <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -202,6 +219,42 @@
   <script src="js/cart.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
   <script>
+    // ローディングオーバーレイ（キャッシュなし初回のみ表示）
+    function loadingOverlay() {
+      var hasCache = !!getCachedProducts();
+      return {
+        show: !hasCache,
+        progress: 0,
+        _timer: null,
+        init() {
+          if (!this.show) return;
+          var self = this;
+          var start = Date.now();
+          this._timer = setInterval(function() {
+            var elapsed = (Date.now() - start) / 1000;
+            var p;
+            if (elapsed < 5) {
+              p = (elapsed / 5) * 60;             // 0→60% in 5s
+            } else if (elapsed < 10) {
+              p = 60 + ((elapsed - 5) / 5) * 20;  // 60→80% in 5s
+            } else if (elapsed < 15) {
+              p = 80 + ((elapsed - 10) / 5) * 10;  // 80→90% in 5s
+            } else if (elapsed < 20) {
+              p = 90 + ((elapsed - 15) / 5) * 5;   // 90→95% in 5s
+            } else {
+              p = 95;
+            }
+            self.progress = Math.min(p, 95);
+          }, 100);
+          window.addEventListener('products-loaded', function() {
+            clearInterval(self._timer);
+            self.progress = 100;
+            setTimeout(function() { self.show = false; }, 300);
+          });
+        }
+      };
+    }
+
     function productList() {
       return {
         products: [],
@@ -251,12 +304,14 @@
               this.products = freshProducts;
               this.buildCategories();
               setCachedProducts(freshProducts);
+              window.dispatchEvent(new CustomEvent('products-loaded'));
               await this.loadVariantPrices();
             }
           } catch (e) {
             if (!cached) {
               this.error = '商品情報の読み込みに失敗しました';
             }
+            window.dispatchEvent(new CustomEvent('products-loaded'));
           } finally {
             this.loading = false;
           }
