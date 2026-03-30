@@ -1,6 +1,6 @@
 // === キャッシュユーティリティ ===
 const CACHE_KEY = 'tf_products_cache';
-const CACHE_TTL = 10 * 60 * 1000; // 10分
+const CACHE_TTL = 30 * 60 * 1000; // 30分
 
 function getCachedProducts() {
   try {

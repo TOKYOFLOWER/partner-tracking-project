@@ -196,12 +196,26 @@ function doPost(e) {
 // ============================================================
 
 function handleProductList() {
+  var cache = CacheService.getScriptCache();
+  var cachedData = cache.get('product_list_response');
+
+  if (cachedData) {
+    return ContentService.createTextOutput(cachedData)
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   var products = sheetToArray('products');
   var inStock = products.filter(function(p) {
     var v = p.in_stock;
     return v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1';
   });
   inStock.sort(function(a, b) { return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0); });
+
+  var responseStr = JSON.stringify(inStock);
+  try {
+    cache.put('product_list_response', responseStr, 300);
+  } catch (e) {}
+
   return jsonResponse(inStock);
 }
 
@@ -314,6 +328,7 @@ function handleProductCreate(body) {
     }
   });
   sheet.appendRow(newRow);
+  try { CacheService.getScriptCache().remove('product_list_response'); } catch (e) {}
   return jsonResponse({ success: true, product_id: productId });
 }
 
@@ -352,6 +367,7 @@ function handleProductUpdate(body) {
         }
         sheet.getRange(i + 1, j + 1).setValue(val);
       }
+      try { CacheService.getScriptCache().remove('product_list_response'); } catch (e) {}
       return jsonResponse({ success: true });
     }
   }
@@ -391,6 +407,7 @@ function handleProductDelete(body) {
     }
   }
 
+  try { CacheService.getScriptCache().remove('product_list_response'); } catch (e) {}
   return jsonResponse({ success: true });
 }
 
@@ -408,6 +425,7 @@ function handleProductToggleStock(body) {
   for (var i = 1; i < data.length; i++) {
     if (data[i][idCol] === productId) {
       sheet.getRange(i + 1, stockCol + 1).setValue(body.in_stock);
+      try { CacheService.getScriptCache().remove('product_list_response'); } catch (e) {}
       return jsonResponse({ success: true });
     }
   }
@@ -1385,33 +1403,54 @@ function handleRakutenItemFetch(body) {
 
     // 4. レスポンスから必要な情報を抽出
     var item = data;
-    var itemName = item.title || item.itemName || '';
-    var description = item.catchCopyForPC || item.itemCaption || item.description || '';
+    var itemName = item.title || '';
+
+    var description = '';
+    if (item.tagline) {
+      description = item.tagline;
+    } else if (item.productDescription && item.productDescription.pc) {
+      description = item.productDescription.pc;
+    }
     description = description.replace(/<[^>]*>/g, '').trim();
     if (description.length > 200) {
       description = description.substring(0, 200) + '...';
     }
 
-    var price = item.standardPrice || item.itemPrice || item.price || 0;
+    // variants オブジェクトのキーを走査し、各SKUの standardPrice から最安値を取得
+    var price = 0;
+    if (item.variants && typeof item.variants === 'object') {
+      var minPrice = Infinity;
+      var keys = Object.keys(item.variants);
+      for (var v = 0; v < keys.length; v++) {
+        var sku = item.variants[keys[v]];
+        if (sku && sku.standardPrice && Number(sku.standardPrice) > 0) {
+          var sp = Number(sku.standardPrice);
+          if (sp < minPrice) minPrice = sp;
+        }
+      }
+      if (minPrice < Infinity) price = minPrice;
+    }
 
+    // 画像URL取得 — 相対パスの場合はプレフィックスを付与
+    var cabinetBase = 'https://image.rakuten.co.jp/tokyoflower/cabinet';
     var images = [];
     if (item.images) {
       for (var i = 0; i < item.images.length && i < 5; i++) {
         var img = item.images[i];
+        var loc = '';
         if (typeof img === 'string') {
-          images.push(img);
+          loc = img;
         } else if (img.location) {
-          images.push(img.location);
+          loc = img.location;
         } else if (img.url) {
-          images.push(img.url);
+          loc = img.url;
         }
-      }
-    }
-    if (images.length === 0 && item.itemImageUrl) {
-      if (Array.isArray(item.itemImageUrl)) {
-        images = item.itemImageUrl.slice(0, 5);
-      } else {
-        images.push(item.itemImageUrl);
+        if (loc) {
+          if (loc.indexOf('http') !== 0) {
+            loc = cabinetBase + (loc.charAt(0) === '/' ? '' : '/') + loc;
+          }
+          images.push(loc);
+        }
       }
     }
 
