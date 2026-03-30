@@ -508,6 +508,7 @@
             this.modal.savedProductId = res.product_id;
             this.modal.form.product_id = res.product_id;
             this.showToast('商品を作成しました');
+            try { localStorage.removeItem('tf_products_cache'); } catch(e) {}
           } else {
             data.product_id = this.modal.form.product_id;
             res = await AdminAPI.updateProduct(data);
@@ -517,6 +518,7 @@
               return;
             }
             this.showToast('商品を更新しました');
+            try { localStorage.removeItem('tf_products_cache'); } catch(e) {}
           }
 
           this.modal.processing = false;
@@ -532,6 +534,7 @@
           } else {
             product.in_stock = newVal;
             this.showToast(newVal ? '在庫ありに変更しました' : '在庫切れに変更しました');
+            try { localStorage.removeItem('tf_products_cache'); } catch(e) {}
           }
         },
 
@@ -563,6 +566,7 @@
           }
           this.deleteModal.open = false;
           this.showToast('商品を削除しました');
+          try { localStorage.removeItem('tf_products_cache'); } catch(e) {}
           await this.loadProducts();
         },
 

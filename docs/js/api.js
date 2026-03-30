@@ -1,3 +1,34 @@
+// === キャッシュユーティリティ ===
+const CACHE_KEY = 'tf_products_cache';
+const CACHE_TTL = 10 * 60 * 1000; // 10分
+
+function getCachedProducts() {
+  try {
+    var cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    var data = JSON.parse(cached);
+    if (Date.now() - data.timestamp > CACHE_TTL) return null;
+    return data.products;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setCachedProducts(products) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      products: products,
+      timestamp: Date.now()
+    }));
+  } catch (e) {}
+}
+
+function clearProductsCache() {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch (e) {}
+}
+
 // API 通信ラッパー（GASバックエンド用）
 const API = {
   async _get(params) {

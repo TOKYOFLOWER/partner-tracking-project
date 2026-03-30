@@ -60,8 +60,24 @@
       </template>
     </div>
 
-    <!-- Loading -->
-    <div x-show="loading" class="text-center py-20 text-gray-400">読み込み中...</div>
+    <!-- ローディングスケルトン -->
+    <template x-if="loading">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <template x-for="i in 6" :key="i">
+          <div class="bg-white rounded-xl shadow-sm overflow-hidden animate-pulse">
+            <div class="bg-gray-200 aspect-[4/3] w-full"></div>
+            <div class="p-4">
+              <div class="bg-gray-200 h-5 w-3/4 rounded mb-2"></div>
+              <div class="bg-gray-200 h-4 w-full rounded mb-3"></div>
+              <div class="flex justify-between items-center">
+                <div class="bg-gray-200 h-6 w-24 rounded"></div>
+                <div class="bg-gray-200 h-10 w-28 rounded-lg"></div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
 
     <!-- Error -->
     <div x-show="error" class="text-center py-20 text-red-500" x-text="error"></div>
@@ -208,57 +224,76 @@
           if (this.activeCategory === 'all') return this.products;
           return this.products.filter(p => p.category === this.activeCategory);
         },
+        categoryLabels: {
+          'mothers_day': '母の日ギフト',
+          'arrangement': 'アレンジメント',
+          'bouquet': '花束',
+          'plant': '観葉植物',
+          'orchid': '胡蝶蘭',
+          'stand': 'スタンド花',
+          'preserved': 'プリザーブドフラワー'
+        },
         async init() {
           Partner.initPartnerTracking();
-          var categoryLabels = {
-            'mothers_day': '母の日ギフト',
-            'arrangement': 'アレンジメント',
-            'bouquet': '花束',
-            'plant': '観葉植物',
-            'orchid': '胡蝶蘭',
-            'stand': 'スタンド花',
-            'preserved': 'プリザーブドフラワー'
-          };
-          try {
-            this.products = await API.fetchProducts();
-            // カテゴリを商品データから動的に抽出
-            var catMap = {};
-            for (var ci = 0; ci < this.products.length; ci++) {
-              var cat = this.products[ci].category;
-              if (cat && cat !== '') {
-                if (!catMap[cat]) {
-                  catMap[cat] = Number(this.products[ci].sort_order) || 9999;
-                } else {
-                  var so = Number(this.products[ci].sort_order) || 9999;
-                  if (so < catMap[cat]) catMap[cat] = so;
-                }
-              }
-            }
-            var catEntries = Object.keys(catMap).map(function(c) {
-              return { value: c, label: categoryLabels[c] || c, sortOrder: catMap[c] };
-            });
-            catEntries.sort(function(a, b) { return a.sortOrder - b.sortOrder; });
-            this.categories = [{ value: 'all', label: 'すべて' }].concat(catEntries);
 
-            for (var i = 0; i < this.products.length; i++) {
-              var p = this.products[i];
-              try {
-                var variants = await API.fetchVariants(p.product_id);
-                if (variants.options && variants.options.length > 0 && variants.combinations && variants.combinations.length > 0) {
-                  var basePrice = Number(p.price) || 0;
-                  var prices = variants.combinations.map(function(c) {
-                    return (c.price !== null && c.price !== undefined) ? c.price : basePrice;
-                  });
-                  p._minPrice = Math.min.apply(null, prices);
-                  p._maxPrice = Math.max.apply(null, prices);
-                  p._hasVariants = true;
-                }
-              } catch (e) {}
+          // キャッシュから即座に表示
+          var cached = getCachedProducts();
+          if (cached) {
+            this.products = cached;
+            this.loading = false;
+            this.buildCategories();
+          }
+
+          // APIから最新データを取得
+          try {
+            var freshProducts = await API.fetchProducts();
+            if (freshProducts && Array.isArray(freshProducts)) {
+              this.products = freshProducts;
+              this.buildCategories();
+              setCachedProducts(freshProducts);
+              await this.loadVariantPrices();
             }
           } catch (e) {
-            this.error = e.message;
+            if (!cached) {
+              this.error = '商品情報の読み込みに失敗しました';
+            }
           } finally {
             this.loading = false;
+          }
+        },
+        buildCategories() {
+          var catMap = {};
+          for (var ci = 0; ci < this.products.length; ci++) {
+            var cat = this.products[ci].category;
+            if (cat && cat !== '') {
+              var so = Number(this.products[ci].sort_order) || 9999;
+              if (!catMap[cat] || so < catMap[cat]) {
+                catMap[cat] = so;
+              }
+            }
+          }
+          var self = this;
+          var catEntries = Object.keys(catMap).map(function(c) {
+            return { value: c, label: self.categoryLabels[c] || c, sortOrder: catMap[c] };
+          });
+          catEntries.sort(function(a, b) { return a.sortOrder - b.sortOrder; });
+          this.categories = [{ value: 'all', label: 'すべて' }].concat(catEntries);
+        },
+        async loadVariantPrices() {
+          for (var i = 0; i < this.products.length; i++) {
+            var p = this.products[i];
+            try {
+              var variants = await API.fetchVariants(p.product_id);
+              if (variants.options && variants.options.length > 0 && variants.combinations && variants.combinations.length > 0) {
+                var basePrice = Number(p.price) || 0;
+                var prices = variants.combinations.map(function(c) {
+                  return (c.price !== null && c.price !== undefined) ? c.price : basePrice;
+                });
+                p._minPrice = Math.min.apply(null, prices);
+                p._maxPrice = Math.max.apply(null, prices);
+                p._hasVariants = true;
+              }
+            } catch (e) {}
           }
         },
         async addToCart(productId) {
