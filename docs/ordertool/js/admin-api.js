@@ -109,7 +109,7 @@ const AdminAPI = {
 
   // 商品一覧（全件・管理用）
   fetchAllProducts() {
-    return this._get({ action: 'product_list_all' });
+    return this._get({ action: 'product_list' });
   },
 
   // 商品カテゴリ一覧

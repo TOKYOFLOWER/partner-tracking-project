@@ -133,8 +133,6 @@ function doGet(e) {
         return handleVariantList(e.parameter.product_id);
       case 'product_categories':
         return handleProductCategories();
-      case 'product_list_all':
-        return handleProductListAll();
       default:
         return jsonResponse({ error: 'Unknown action: ' + action });
     }
@@ -261,17 +259,6 @@ function handleVariantList(productId) {
   });
 
   return jsonResponse({ options: options, combinations: combinations });
-}
-
-function handleProductListAll() {
-  var products = sheetToArray('products');
-  products.sort(function(a, b) { return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0); });
-  // in_stock を boolean に正規化
-  products.forEach(function(p) {
-    var v = p.in_stock;
-    p.in_stock = (v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1');
-  });
-  return jsonResponse(products);
 }
 
 function handleProductCategories() {
